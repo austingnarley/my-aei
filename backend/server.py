@@ -359,6 +359,134 @@ async def get_relationship(relationship_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve relationship: {str(e)}")
 
+@app.post("/api/relationships/{relationship_id}/analyze", response_model=AnalysisResult)
+async def analyze_relationship_message(relationship_id: str, message_input: MessageInput):
+    try:
+        # Verify relationship exists
+        relationship = await db.relationships.find_one({"id": relationship_id})
+        if not relationship:
+            raise HTTPException(status_code=404, detail="Relationship not found")
+        
+        # Add relationship_id to the message input if not already present
+        if not message_input.relationship_id:
+            message_input.relationship_id = relationship_id
+        
+        # Call the analyze endpoint
+        result = await analyze_message(message_input)
+        
+        return result
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to analyze message: {str(e)}")
+
+@app.get("/api/relationships/{relationship_id}/history")
+async def get_relationship_history(relationship_id: str):
+    try:
+        # Get all analyses for this relationship
+        analyses = await db.analysis_results.find(
+            {"relationship_id": relationship_id}
+        ).sort("created_at", -1).to_list(100)
+        
+        # Get the relationship
+        relationship = await db.relationships.find_one({"id": relationship_id})
+        if not relationship:
+            raise HTTPException(status_code=404, detail="Relationship not found")
+        
+        # Create trend data
+        health_trend = []
+        sentiment_counts = {"positive": 0, "neutral": 0, "negative": 0}
+        flag_types = {}
+        
+        # Group analyses by date
+        analyses_by_date = {}
+        for analysis in analyses:
+            date = analysis.get("created_at", "").split("T")[0]
+            if date not in analyses_by_date:
+                analyses_by_date[date] = []
+            analyses_by_date[date].append(analysis)
+            
+            # Count sentiments
+            sentiment = analysis.get("sentiment", "neutral")
+            sentiment_counts[sentiment] = sentiment_counts.get(sentiment, 0) + 1
+            
+            # Count flag types
+            for flag in analysis.get("flags", []):
+                flag_type = flag.get("type", "Unknown")
+                flag_types[flag_type] = flag_types.get(flag_type, 0) + 1
+        
+        # Create daily health scores (simulated for demo)
+        dates = sorted(analyses_by_date.keys())
+        for date in dates:
+            day_analyses = analyses_by_date[date]
+            # Simple algorithm: start with base score and reduce for each flag
+            day_score = 75
+            total_flags = sum(len(a.get("flags", [])) for a in day_analyses)
+            day_score = max(0, min(100, day_score - (total_flags * 5)))
+            
+            health_trend.append({
+                "date": date,
+                "score": day_score
+            })
+        
+        return {
+            "relationship": parse_json(relationship),
+            "analyses": parse_json(analyses),
+            "health_trend": health_trend,
+            "sentiment_counts": sentiment_counts,
+            "flag_types": flag_types
+        }
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve relationship history: {str(e)}")
+
+@app.put("/api/relationships/{relationship_id}", response_model=Relationship)
+async def update_relationship(relationship_id: str, relationship_update: dict):
+    try:
+        # Ensure id isn't changed
+        if "id" in relationship_update and relationship_update["id"] != relationship_id:
+            raise HTTPException(status_code=400, detail="Cannot change relationship ID")
+        
+        # Make sure the relationship exists
+        existing = await db.relationships.find_one({"id": relationship_id})
+        if not existing:
+            raise HTTPException(status_code=404, detail="Relationship not found")
+        
+        # Update the relationship
+        await db.relationships.update_one(
+            {"id": relationship_id},
+            {"$set": {**relationship_update, "updated_at": datetime.now().isoformat()}}
+        )
+        
+        # Return the updated relationship
+        updated = await db.relationships.find_one({"id": relationship_id})
+        return parse_json(updated)
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update relationship: {str(e)}")
+
+@app.delete("/api/relationships/{relationship_id}")
+async def delete_relationship(relationship_id: str):
+    try:
+        # Make sure the relationship exists
+        existing = await db.relationships.find_one({"id": relationship_id})
+        if not existing:
+            raise HTTPException(status_code=404, detail="Relationship not found")
+        
+        # Delete the relationship
+        await db.relationships.delete_one({"id": relationship_id})
+        
+        # Optionally, you could also delete all analyses related to this relationship
+        await db.analysis_results.delete_many({"relationship_id": relationship_id})
+        
+        return {"success": True, "message": "Relationship deleted successfully"}
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete relationship: {str(e)}")
+
 @app.get("/api/growth-plan")
 async def get_growth_plan(user_id: Optional[str] = None):
     try:
