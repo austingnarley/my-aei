@@ -163,7 +163,7 @@ async def get_analysis(analysis_id: str):
         raise HTTPException(status_code=404, detail="Analysis not found")
     return result
 
-@app.get("/api/analysis/history")
+@app.get("/api/history")
 async def get_analysis_history(limit: int = Query(10, ge=1, le=50)):
     """Get history of previous analyses"""
     try:
