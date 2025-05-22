@@ -1,75 +1,163 @@
-from fastapi import FastAPI, APIRouter
-from dotenv import load_dotenv
-from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
 import os
-import logging
-from pathlib import Path
-from pydantic import BaseModel, Field
-from typing import List
+import json
 import uuid
 from datetime import datetime
+from typing import Dict, List, Optional, Any
 
+import groq
+from fastapi import FastAPI, HTTPException, Body, Depends, Query
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+from pymongo import MongoClient
+from dotenv import load_dotenv
 
-ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
+# Load environment variables
+load_dotenv()
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# Initialize Groq client
+groq_client = groq.Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
-# Create the main app without a prefix
-app = FastAPI()
+# MongoDB setup
+mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
+db_name = os.environ.get("DB_NAME", "test_database")
+client = MongoClient(mongo_url)
+db = client[db_name]
 
-# Create a router with the /api prefix
-api_router = APIRouter(prefix="/api")
+app = FastAPI(title="My ÆI - Emotional Intelligence API")
 
-
-# Define Models
-class StatusCheck(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-
-class StatusCheckCreate(BaseModel):
-    client_name: str
-
-# Add your routes to the router instead of directly to app
-@api_router.get("/")
-async def root():
-    return {"message": "Hello World"}
-
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.dict()
-    status_obj = StatusCheck(**status_dict)
-    _ = await db.status_checks.insert_one(status_obj.dict())
-    return status_obj
-
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    status_checks = await db.status_checks.find().to_list(1000)
-    return [StatusCheck(**status_check) for status_check in status_checks]
-
-# Include the router in the main app
-app.include_router(api_router)
-
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Models
+class MessageAnalysisRequest(BaseModel):
+    text: str = Field(..., description="The message text to analyze")
+    context: Optional[str] = Field(None, description="Optional context about the conversation")
+    relationship_id: Optional[str] = Field(None, description="ID of the related relationship")
 
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
+class EmotionalFlag(BaseModel):
+    type: str = Field(..., description="Type of emotional flag detected")
+    severity: float = Field(..., description="Severity score from 0.0 to 1.0")
+    evidence: str = Field(..., description="Text evidence of the flag")
+
+class AnalysisResult(BaseModel):
+    id: str = Field(..., description="Unique ID for the analysis")
+    flags: List[EmotionalFlag] = Field(..., description="List of emotional flags detected")
+    overall_sentiment: str = Field(..., description="Overall sentiment of the message")
+    suggested_reframe: Optional[str] = Field(None, description="Suggested reframing of the message")
+    created_at: datetime = Field(..., description="When the analysis was created")
+
+# AI Analysis System Prompt
+ANALYSIS_SYSTEM_PROMPT = """You are My ÆI, an expert emotional intelligence system that specializes in detecting emotional red flags and unhealthy communication patterns.
+
+Your task is to analyze messages and identify the following types of emotional red flags:
+1. gaslighting - Denying or twisting the other person's reality
+2. guilt_tripping - Inducing guilt to control
+3. blame_shifting - Redirecting fault onto recipient
+4. invalidation - Dismissing feelings
+5. stonewalling - Withholding response / silent treatment
+6. passive_aggression - Indirect hostility
+
+For each flag you detect, provide:
+- The type (from the list above)
+- A severity score (0.0 to 1.0)
+- Text evidence from the message
+
+Also provide:
+- An overall sentiment assessment (positive, neutral, negative)
+- A suggested reframing that could improve the communication
+
+Format your response as a valid JSON object with these fields:
+{
+  "flags": [
+    {"type": "gaslighting", "severity": 0.82, "evidence": "You're just being dramatic"},
+    {"type": "invalidation", "severity": 0.65, "evidence": "You're too sensitive"}
+  ],
+  "overall_sentiment": "negative",
+  "suggested_reframe": "I understand this situation is upsetting. I'd like to hear more about how you're feeling so I can better understand your perspective."
+}
+
+Be precise and sensitive in your analysis. If no red flags are detected, return an empty array for 'flags'.
+"""
+
+# Routes
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "version": "1.0.0"}
+
+@app.post("/api/analyze", response_model=AnalysisResult)
+async def analyze_message(request: MessageAnalysisRequest):
+    """Analyze a message for emotional red flags and patterns"""
+    try:
+        # Prepare the prompt
+        user_prompt = f"Message to analyze: {request.text}"
+        if request.context:
+            user_prompt += f"\n\nContext: {request.context}"
+        
+        # Call Groq API
+        response = groq_client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": ANALYSIS_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt}
+            ],
+            model="llama3-8b-8192",  # Using Llama 3 8B model (good balance of speed and quality)
+            temperature=0.2,  # Lower temperature for more consistent results
+            max_tokens=1024,
+            top_p=1
+        )
+        
+        # Extract and parse the response
+        ai_response = response.choices[0].message.content
+        try:
+            analysis = json.loads(ai_response)
+        except json.JSONDecodeError:
+            # If AI doesn't return valid JSON, create a basic structure
+            analysis = {
+                "flags": [],
+                "overall_sentiment": "neutral",
+                "suggested_reframe": None
+            }
+        
+        # Create result document
+        result = {
+            "id": str(uuid.uuid4()),
+            "flags": analysis.get("flags", []),
+            "overall_sentiment": analysis.get("overall_sentiment", "neutral"),
+            "suggested_reframe": analysis.get("suggested_reframe"),
+            "created_at": datetime.utcnow(),
+            "text": request.text,  # Store original text
+            "relationship_id": request.relationship_id
+        }
+        
+        # Save to database
+        db.analysis_results.insert_one(result)
+        
+        # Return the result
+        return result
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+@app.get("/api/analysis/{analysis_id}", response_model=AnalysisResult)
+async def get_analysis(analysis_id: str):
+    """Get a specific analysis by ID"""
+    result = db.analysis_results.find_one({"id": analysis_id})
+    if not result:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+    return result
+
+@app.get("/api/analysis/history", response_model=List[AnalysisResult])
+async def get_analysis_history(limit: int = Query(10, ge=1, le=50)):
+    """Get history of previous analyses"""
+    results = list(db.analysis_results.find().sort("created_at", -1).limit(limit))
+    return results
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("server:app", host="0.0.0.0", port=8001, reload=True)
