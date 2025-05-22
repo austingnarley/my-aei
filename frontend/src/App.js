@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import './App.css';
 
-// Context Provider for app-wide state
+// Context Providers
 import { AppProvider } from './contexts/AppContext';
+import { FaithProvider } from './contexts/FaithContext';
 
 // Pages (will import these from separate files after creation)
 import Dashboard from './pages/Dashboard';
