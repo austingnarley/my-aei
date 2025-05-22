@@ -16,6 +16,7 @@ import Home from './pages/Home';
 // Components
 const Header = () => {
   const location = useLocation();
+  const { faithModeEnabled, toggleFaithMode } = useFaith();
   
   return (
     <header className="bg-gradient-to-r from-purple-700 to-indigo-800 text-white py-6 shadow-lg">
@@ -25,24 +26,45 @@ const Header = () => {
             <span className="text-3xl font-extrabold">My ÆI</span>
             <span className="text-sm bg-purple-900 px-2 py-1 rounded-md opacity-75">Alpha</span>
           </Link>
-          <nav className="hidden md:flex space-x-8">
-            <Link to="/message-analyzer" 
-              className={`font-medium hover:text-purple-300 transition-colors ${location.pathname === '/message-analyzer' ? 'text-white' : 'text-purple-300'}`}>
-              Message Analyzer
-            </Link>
-            <Link to="/dashboard" 
-              className={`font-medium hover:text-purple-300 transition-colors ${location.pathname === '/dashboard' ? 'text-white' : 'text-purple-300'}`}>
-              Dashboard
-            </Link>
-            <Link to="/relationships" 
-              className={`font-medium hover:text-purple-300 transition-colors ${location.pathname === '/relationships' ? 'text-white' : 'text-purple-300'}`}>
-              Relationships
-            </Link>
-            <Link to="/growth-center" 
-              className={`font-medium hover:text-purple-300 transition-colors ${location.pathname === '/growth-center' ? 'text-white' : 'text-purple-300'}`}>
-              Growth Center
-            </Link>
-          </nav>
+          
+          <div className="flex items-center">
+            <nav className="hidden md:flex space-x-8 mr-6">
+              <Link to="/message-analyzer" 
+                className={`font-medium hover:text-purple-300 transition-colors ${location.pathname === '/message-analyzer' ? 'text-white' : 'text-purple-300'}`}>
+                Message Analyzer
+              </Link>
+              <Link to="/dashboard" 
+                className={`font-medium hover:text-purple-300 transition-colors ${location.pathname === '/dashboard' ? 'text-white' : 'text-purple-300'}`}>
+                Dashboard
+              </Link>
+              <Link to="/relationships" 
+                className={`font-medium hover:text-purple-300 transition-colors ${location.pathname === '/relationships' ? 'text-white' : 'text-purple-300'}`}>
+                Relationships
+              </Link>
+              <Link to="/growth-center" 
+                className={`font-medium hover:text-purple-300 transition-colors ${location.pathname === '/growth-center' ? 'text-white' : 'text-purple-300'}`}>
+                Growth Center
+              </Link>
+            </nav>
+            
+            {/* Faith Mode Toggle */}
+            <div className="hidden md:flex items-center space-x-2 border-l border-purple-600 pl-6">
+              <span className="text-xs font-medium">Faith Mode</span>
+              <button
+                onClick={toggleFaithMode}
+                className={`relative inline-flex items-center h-5 rounded-full w-10 transition-colors focus:outline-none ${
+                  faithModeEnabled ? 'bg-green-500' : 'bg-gray-600'
+                }`}
+                aria-label="Toggle Faith Mode"
+              >
+                <span
+                  className={`inline-block w-3 h-3 transform bg-white rounded-full transition-transform ${
+                    faithModeEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
           
           {/* Mobile menu button */}
           <div className="md:hidden">
