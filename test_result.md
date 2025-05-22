@@ -165,6 +165,18 @@ backend:
         agent: "testing"
         comment: "Growth plan endpoint returns a valid growth plan with ID, theme, activities, and goals."
 
+  - task: "Two-sided conversation analysis"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Two-sided conversation analysis is working correctly. The API successfully identifies flags from both 'Their message' and 'Your response' parts. In our test, it detected Gaslighting and Invalidation from 'Their message' and Defensiveness from 'Your response'. The interpretation and suggestions provided are appropriate for the conversation context."
+
 metadata:
   created_by: "testing_agent"
   version: "1.0"
