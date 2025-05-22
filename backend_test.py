@@ -66,15 +66,6 @@ class MyAITester:
             data={"text": message_text}
         )
 
-    def test_get_analysis(self, analysis_id):
-        """Test retrieving a specific analysis"""
-        return self.run_test(
-            "Get Analysis by ID",
-            "GET",
-            f"api/analysis/{analysis_id}",
-            200
-        )
-
     def test_get_analysis_history(self):
         """Test retrieving analysis history"""
         return self.run_test(
@@ -92,6 +83,48 @@ class MyAITester:
             "api/dashboard",
             200
         )
+    
+    def test_get_relationships(self):
+        """Test retrieving relationships"""
+        return self.run_test(
+            "Get Relationships",
+            "GET",
+            "api/relationships",
+            200
+        )
+    
+    def test_create_relationship(self):
+        """Test creating a relationship"""
+        test_relationship = {
+            "name": "Test Relationship",
+            "type": "Friend",
+            "notes": "Created for testing purposes"
+        }
+        return self.run_test(
+            "Create Relationship",
+            "POST",
+            "api/relationships",
+            200,
+            data=test_relationship
+        )
+    
+    def test_get_relationship_by_id(self, relationship_id):
+        """Test retrieving a specific relationship"""
+        return self.run_test(
+            "Get Relationship by ID",
+            "GET",
+            f"api/relationships/{relationship_id}",
+            200
+        )
+    
+    def test_get_growth_plan(self):
+        """Test retrieving growth plan"""
+        return self.run_test(
+            "Get Growth Plan",
+            "GET",
+            "api/growth-plan",
+            200
+        )
 
 def main():
     # Setup
@@ -99,7 +132,9 @@ def main():
     test_message = "You are always so dramatic. This would not have happened if you just listened to me in the first place. I cannot believe I have to deal with this after all I have done for you."
     
     # Run tests
-    print("\n===== Testing My ÆI API =====")
+    print("\n===== Testing Emotional Intelligence API =====")
+    print(f"Testing against: {tester.base_url}")
+    print(f"Test started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     # Test health check
     health_success, health_data = tester.test_health_check()
@@ -111,24 +146,18 @@ def main():
     if analysis_success:
         print("\nAnalysis results:")
         print(f"- ID: {analysis_data.get('id')}")
-        print(f"- Overall sentiment: {analysis_data.get('overall_sentiment')}")
+        print(f"- Sentiment: {analysis_data.get('sentiment')}")
         print(f"- Flags detected: {len(analysis_data.get('flags', []))}")
         
         # Print detected flags
         for flag in analysis_data.get('flags', []):
-            print(f"  - {flag.get('type')} (severity: {flag.get('severity')})")
-            print(f"    Evidence: \"{flag.get('evidence')}\"")
+            print(f"  - {flag.get('type')}: {flag.get('description')}")
         
-        # Print suggested reframe
-        if analysis_data.get('suggested_reframe'):
-            print(f"\nSuggested reframe: \"{analysis_data.get('suggested_reframe')}\"")
-        
-        # Test getting analysis by ID
-        if 'id' in analysis_data:
-            analysis_id = analysis_data['id']
-            get_success, get_data = tester.test_get_analysis(analysis_id)
-            if get_success:
-                print(f"\nSuccessfully retrieved analysis with ID: {analysis_id}")
+        # Print suggestions
+        if analysis_data.get('suggestions'):
+            print("\nSuggestions:")
+            for suggestion in analysis_data.get('suggestions', []):
+                print(f"  - {suggestion}")
     
     # Test analysis history
     history_success, history_data = tester.test_get_analysis_history()
@@ -143,6 +172,31 @@ def main():
         print(f"- Total analyses: {dashboard_data.get('total_analyses')}")
         print(f"- Total flags detected: {dashboard_data.get('total_flags_detected')}")
         print(f"- Flag counts: {dashboard_data.get('flag_counts')}")
+    
+    # Test relationships endpoints
+    relationships_success, relationships_data = tester.test_get_relationships()
+    if relationships_success:
+        print(f"\nRetrieved {len(relationships_data)} relationships")
+    
+    # Test creating a relationship
+    create_rel_success, created_relationship = tester.test_create_relationship()
+    if create_rel_success and 'id' in created_relationship:
+        relationship_id = created_relationship['id']
+        print(f"\nCreated relationship with ID: {relationship_id}")
+        
+        # Test getting relationship by ID
+        get_rel_success, relationship_data = tester.test_get_relationship_by_id(relationship_id)
+        if get_rel_success:
+            print(f"Retrieved relationship: {relationship_data.get('name')}")
+    
+    # Test growth plan
+    growth_plan_success, growth_plan_data = tester.test_get_growth_plan()
+    if growth_plan_success:
+        print("\nGrowth plan data:")
+        print(f"- ID: {growth_plan_data.get('id')}")
+        print(f"- Theme: {growth_plan_data.get('current_week', {}).get('theme')}")
+        print(f"- Number of activities: {len(growth_plan_data.get('current_week', {}).get('days', []))}")
+        print(f"- Number of goals: {len(growth_plan_data.get('goals', []))}")
     
     # Print results
     print(f"\n📊 Tests passed: {tester.tests_passed}/{tester.tests_run}")
