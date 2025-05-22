@@ -223,18 +223,20 @@ async def analyze_message(message_input: MessageInput):
             relationship_name=relationship_name,
             flags=flags,
             interpretation=(
-                "This message shows patterns of communication that could create emotional distance. "
-                "The language used may be unintentionally invalidating the other person's perspective."
+                "This conversation shows patterns that could create emotional distance between the participants. "
+                "The language used may contain red flags that could damage trust and emotional safety in the relationship."
                 if flags else
-                "This message demonstrates healthy communication patterns with clear expression and respect."
+                "This conversation demonstrates healthy communication patterns with clear expression, respect, and emotional safety."
             ),
             suggestions=[
-                "Consider using 'I feel' statements instead of 'you' statements",
-                "Try to be specific about behaviors rather than using generalizations like 'always' or 'never'",
-                "Acknowledge the other person's perspective before expressing your own"
+                "Consider using 'I feel' statements instead of 'you' statements to express concerns",
+                "Try to validate the other person's perspective before sharing your own view",
+                "Focus on specific behaviors rather than using generalizations like 'always' or 'never'",
+                "If you notice tension rising, take a short pause before responding"
             ] if flags else [
-                "Continue using this communication style in future interactions",
-                "Be aware that even positive patterns might need adjustment for different people"
+                "Continue using this balanced communication style",
+                "Notice how mutual respect strengthens your connection",
+                "Consider sharing appreciation for the healthy dialogue"
             ],
             sentiment=sentiment
         )
