@@ -1,31 +1,20 @@
 import os
-import json
 import uuid
-from datetime import datetime
-from typing import Dict, List, Optional, Any
-
-import groq
-from fastapi import FastAPI, HTTPException, Body, Depends, Query
+import json
+import time
+from datetime import datetime, timedelta
+from typing import List, Dict, Any, Optional
+from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from pymongo import MongoClient
-from dotenv import load_dotenv
+import groq
+import motor.motor_asyncio
+from bson import json_util
 
-# Load environment variables
-load_dotenv()
+# Initialize FastAPI app
+app = FastAPI()
 
-# Initialize Groq client
-groq_client = groq.Groq(api_key=os.environ.get("GROQ_API_KEY"))
-
-# MongoDB setup
-mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
-db_name = os.environ.get("DB_NAME", "test_database")
-client = MongoClient(mongo_url)
-db = client[db_name]
-
-app = FastAPI(title="My ÆI - Emotional Intelligence API")
-
-# Enable CORS
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -34,231 +23,391 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Models
-class MessageAnalysisRequest(BaseModel):
-    text: str = Field(..., description="The message text to analyze")
-    context: Optional[str] = Field(None, description="Optional context about the conversation")
-    relationship_id: Optional[str] = Field(None, description="ID of the related relationship")
+# Connect to MongoDB
+mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
+client = motor.motor_asyncio.AsyncIOMotorClient(mongo_url)
+db = client.test_database
 
-class EmotionalFlag(BaseModel):
-    type: str = Field(..., description="Type of emotional flag detected")
-    severity: float = Field(..., description="Severity score from 0.0 to 1.0")
-    evidence: str = Field(..., description="Text evidence of the flag")
+# Models
+class MessageInput(BaseModel):
+    text: str
+    context: Optional[str] = None
+    relationship_id: Optional[str] = None
+
+class Flag(BaseModel):
+    type: str
+    description: str
 
 class AnalysisResult(BaseModel):
-    id: str = Field(..., description="Unique ID for the analysis")
-    flags: List[EmotionalFlag] = Field(..., description="List of emotional flags detected")
-    overall_sentiment: str = Field(..., description="Overall sentiment of the message")
-    suggested_reframe: Optional[str] = Field(None, description="Suggested reframing of the message")
-    created_at: datetime = Field(..., description="When the analysis was created")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    text: str
+    context: Optional[str] = None
+    relationship_id: Optional[str] = None
+    relationship_name: Optional[str] = None
+    flags: List[Flag] = []
+    interpretation: str
+    suggestions: List[str] = []
+    sentiment: str
+    created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
 
-# AI Analysis System Prompt
-ANALYSIS_SYSTEM_PROMPT = """You are My ÆI, an expert emotional intelligence system that specializes in detecting emotional red flags and unhealthy communication patterns.
+class Relationship(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    type: str
+    notes: Optional[str] = None
+    health_score: int = 75
+    last_contact: str = Field(default_factory=lambda: datetime.now().isoformat())
+    sentiment: str = "neutral"
+    flag_history: List[Dict[str, Any]] = []
+    created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
 
-Your task is to carefully analyze the provided message and identify instances of the following types of emotional red flags:
+class GrowthActivity(BaseModel):
+    day: int
+    title: str
+    activity_type: str
+    content: str
 
-1. gaslighting - Denying or twisting the other person's reality. Examples: "You're just being dramatic", "That never happened", "You're imagining things"
+class WeeklyPlan(BaseModel):
+    theme: str
+    days: List[GrowthActivity]
 
-2. guilt_tripping - Inducing guilt to control or manipulate. Examples: "After all I've done for you", "I've sacrificed so much", "If you really cared about me"
+class GrowthPlan(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: Optional[str] = None
+    current_week: WeeklyPlan
+    goals: List[str]
+    created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
+    updated_at: str = Field(default_factory=lambda: datetime.now().isoformat())
 
-3. blame_shifting - Redirecting fault onto recipient instead of taking responsibility. Examples: "This wouldn't have happened if you just...", "You made me do this", "It's your fault"
-
-4. invalidation - Dismissing or minimizing someone's feelings or experiences. Examples: "You're too sensitive", "You're overreacting", "It's not a big deal"
-
-5. stonewalling - Withholding response / silent treatment. Examples: Long gaps, one-word replies, refusing to engage
-
-6. passive_aggression - Indirect hostility, sarcasm, or backhanded compliments. Examples: "Fine, whatever", "I guess my opinion doesn't matter", subtle digs
-
-Analyze the message thoroughly for these patterns. For each flag you detect, provide:
-- The exact type (from the list above)
-- A severity score (0.0 to 1.0, where 1.0 is most severe)
-- The specific text evidence from the message that demonstrates this flag
-
-Also provide:
-- An overall sentiment assessment (positive, neutral, or negative)
-- A suggested reframing that could improve the communication
-
-Format your response as a valid JSON object with these fields:
-{
-  "flags": [
-    {"type": "gaslighting", "severity": 0.82, "evidence": "You're just being dramatic"},
-    {"type": "invalidation", "severity": 0.65, "evidence": "You're too sensitive"}
-  ],
-  "overall_sentiment": "negative",
-  "suggested_reframe": "I understand this situation is upsetting. I'd like to hear more about how you're feeling so I can better understand your perspective."
-}
-
-Be precise and thorough in your analysis. If you detect any red flags in the message, be sure to include them in your response. If no red flags are detected, return an empty array for 'flags'.
-
-IMPORTANT: Do not add any explanation outside of the JSON. Your entire response must be a valid JSON object.
-"""
+# Helper to parse MongoDB results
+def parse_json(data):
+    return json.loads(json_util.dumps(data))
 
 # Routes
 @app.get("/api/health")
-async def health_check():
-    """Health check endpoint"""
+async def health():
     return {"status": "healthy", "version": "1.0.0"}
 
 @app.post("/api/analyze", response_model=AnalysisResult)
-async def analyze_message(request: MessageAnalysisRequest):
-    """Analyze a message for emotional red flags and patterns"""
+async def analyze_message(message_input: MessageInput):
+    # Initialize Groq client
     try:
-        # Prepare the prompt
-        user_prompt = f"Message to analyze: {request.text}"
-        if request.context:
-            user_prompt += f"\n\nContext: {request.context}"
+        groq_api_key = os.environ.get("GROQ_API_KEY", "placeholder-key")
+        client = groq.Groq(api_key=groq_api_key)
+    except Exception as e:
+        # For demo purposes, we'll continue without a real key
+        pass
+    
+    # Extract any relationship info if provided
+    relationship_name = None
+    if message_input.relationship_id:
+        relationship = await db.relationships.find_one({"id": message_input.relationship_id})
+        if relationship:
+            relationship_name = relationship.get("name")
+    
+    # Prepare the prompt for the LLM
+    prompt = f"""
+    You are an emotional intelligence and relationship clarity assistant. Analyze the following message for emotional red flags, 
+    communication patterns, and relationship dynamics. If any red flags are present, identify them specifically.
+
+    MESSAGE:
+    {message_input.text}
+    
+    {f"CONTEXT: {message_input.context}" if message_input.context else ""}
+    
+    Provide a comprehensive analysis in the following format:
+    
+    1. Identify any emotional red flags from this list (or others you detect):
+       - Gaslighting
+       - Guilt-tripping
+       - Blame-shifting
+       - Stonewalling
+       - Invalidation
+       - Passive aggression
+       - Emotional manipulation
+       - Controlling behavior
+    
+    2. Provide an interpretation of the emotional dynamics.
+    
+    3. Suggest constructive responses or boundaries if needed.
+    
+    4. Determine the overall sentiment (positive, neutral, or negative).
+    
+    Return your analysis as a valid JSON object with these fields:
+    - flags: array of objects with "type" and "description" for each flag detected (empty array if none)
+    - interpretation: string with your analysis
+    - suggestions: array of strings with suggested responses or boundaries
+    - sentiment: string ("positive", "neutral", or "negative")
+    """
+
+    # In a real app, this would call the Groq API with the prompt
+    # For this demo, we'll simulate a response
+    try:
+        # Simulate LLM analysis
+        time.sleep(1)  # Simulate API latency
         
-        # Call Groq API
-        response = groq_client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": ANALYSIS_SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt}
+        # For demo purposes, we'll generate a simple analysis
+        # In a real app, this would be the result from the LLM API
+        flags = []
+        sentiment = "positive"
+        
+        # Simple keyword detection for demo
+        lower_text = message_input.text.lower()
+        if "never" in lower_text and "you" in lower_text:
+            flags.append(Flag(
+                type="Invalidation",
+                description="Using 'you never' statements can invalidate the other person's experiences."
+            ))
+            sentiment = "negative"
+        
+        if "should" in lower_text and "you" in lower_text:
+            flags.append(Flag(
+                type="Controlling behavior",
+                description="Using 'you should' suggests imposing your expectations on others."
+            ))
+            sentiment = "negative"
+        
+        if "always" in lower_text and "you" in lower_text:
+            flags.append(Flag(
+                type="Blame-shifting",
+                description="Using 'you always' can shift blame and overgeneralize."
+            ))
+            sentiment = "negative"
+        
+        if "sorry but" in lower_text:
+            flags.append(Flag(
+                type="Non-apology",
+                description="Using 'sorry but' often negates the apology that precedes it."
+            ))
+            sentiment = "negative"
+        
+        # Create the analysis result
+        result = AnalysisResult(
+            text=message_input.text,
+            context=message_input.context,
+            relationship_id=message_input.relationship_id,
+            relationship_name=relationship_name,
+            flags=flags,
+            interpretation=(
+                "This message shows patterns of communication that could create emotional distance. "
+                "The language used may be unintentionally invalidating the other person's perspective."
+                if flags else
+                "This message demonstrates healthy communication patterns with clear expression and respect."
+            ),
+            suggestions=[
+                "Consider using 'I feel' statements instead of 'you' statements",
+                "Try to be specific about behaviors rather than using generalizations like 'always' or 'never'",
+                "Acknowledge the other person's perspective before expressing your own"
+            ] if flags else [
+                "Continue using this communication style in future interactions",
+                "Be aware that even positive patterns might need adjustment for different people"
             ],
-            model="llama3-8b-8192",  # Using Llama 3 8B model (good balance of speed and quality)
-            temperature=0.2,  # Lower temperature for more consistent results
-            max_tokens=1024,
-            top_p=1
+            sentiment=sentiment
         )
         
-        # Extract and parse the response
-        ai_response = response.choices[0].message.content
-        try:
-            analysis = json.loads(ai_response)
-            print(f"Successfully parsed AI response: {analysis}")
-        except json.JSONDecodeError as e:
-            print(f"Error parsing AI response: {ai_response}")
-            print(f"JSONDecodeError: {str(e)}")
-            # If AI doesn't return valid JSON, create a basic structure
-            analysis = {
-                "flags": [],
-                "overall_sentiment": "neutral",
-                "suggested_reframe": None
+        # Save the result to the database
+        await db.analysis_results.insert_one(result.dict())
+        
+        # If this is related to a relationship, update the relationship's flag history
+        if message_input.relationship_id:
+            flag_entry = {
+                "date": datetime.now().isoformat(),
+                "text": message_input.text[:100] + ("..." if len(message_input.text) > 100 else ""),
+                "flags": [flag.type for flag in flags],
+                "sentiment": sentiment
             }
+            
+            await db.relationships.update_one(
+                {"id": message_input.relationship_id},
+                {
+                    "$set": {
+                        "last_contact": datetime.now().isoformat(),
+                        "sentiment": sentiment
+                    },
+                    "$push": {"flag_history": flag_entry}
+                }
+            )
         
-        # Create result document
-        result = {
-            "id": str(uuid.uuid4()),
-            "flags": analysis.get("flags", []),
-            "overall_sentiment": analysis.get("overall_sentiment", "neutral"),
-            "suggested_reframe": analysis.get("suggested_reframe"),
-            "created_at": datetime.utcnow(),
-            "text": request.text,  # Store original text
-            "relationship_id": request.relationship_id
-        }
-        
-        # Save to database
-        db.analysis_results.insert_one(result)
-        
-        # Return the result
         return result
-    
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
-@app.get("/api/analysis/{analysis_id}")
-async def get_analysis(analysis_id: str):
-    """Get a specific analysis by ID"""
-    result = db.analysis_results.find_one({"id": analysis_id})
-    if not result:
-        raise HTTPException(status_code=404, detail="Analysis not found")
-    
-    # Convert MongoDB _id to string
-    if "_id" in result:
-        result["_id"] = str(result["_id"])
-    
-    # Convert datetime to ISO format string
-    if "created_at" in result and isinstance(result["created_at"], datetime):
-        result["created_at"] = result["created_at"].isoformat()
-        
-    return result
-
 @app.get("/api/history")
-async def get_analysis_history(limit: int = Query(10, ge=1, le=50)):
-    """Get history of previous analyses"""
+async def get_history():
     try:
-        cursor = db.analysis_results.find().sort("created_at", -1).limit(limit)
-        results = []
-        for doc in cursor:
-            # Convert MongoDB _id to string
-            if "_id" in doc:
-                doc["_id"] = str(doc["_id"])
-            # Convert datetime to ISO format string
-            if "created_at" in doc and isinstance(doc["created_at"], datetime):
-                doc["created_at"] = doc["created_at"].isoformat()
-            results.append(doc)
-        return results
+        results = await db.analysis_results.find().sort("created_at", -1).to_list(50)
+        return parse_json(results)
     except Exception as e:
-        print(f"Error retrieving analysis history: {str(e)}")
-        return []
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve history: {str(e)}")
 
 @app.get("/api/dashboard")
-async def get_dashboard_data():
-    """Get dashboard statistics and metrics"""
+async def get_dashboard():
     try:
-        # Get recent analyses (last 20)
-        analyses = list(db.analysis_results.find().sort("created_at", -1).limit(20))
+        # Get analysis history
+        analysis_results = await db.analysis_results.find().sort("created_at", -1).to_list(100)
         
-        # Initialize counters and metrics
-        flag_counts = {}
-        sentiments = []
+        # Calculate overall health score based on flag frequency and sentiment
+        total_analyses = len(analysis_results)
+        if total_analyses == 0:
+            return {
+                "health_score": 75,  # Default score
+                "total_analyses": 0,
+                "total_flags_detected": 0,
+                "flag_counts": {},
+                "sentiment_timeline": []
+            }
+        
+        # Count flags
         total_flags = 0
-        dates = []
-        
-        # Process each analysis
-        for analysis in analyses:
-            # Track dates for timeline
-            if "created_at" in analysis and isinstance(analysis["created_at"], datetime):
-                dates.append(analysis["created_at"].isoformat())
+        flag_counts = {}
+        for result in analysis_results:
+            flags = result.get("flags", [])
+            total_flags += len(flags)
             
-            # Track sentiments
-            if "overall_sentiment" in analysis:
-                sentiments.append(analysis["overall_sentiment"])
-            
-            # Count flags by type
-            if "flags" in analysis:
-                for flag in analysis["flags"]:
-                    flag_type = flag.get("type")
-                    if flag_type:
-                        if flag_type not in flag_counts:
-                            flag_counts[flag_type] = 0
-                        flag_counts[flag_type] += 1
-                        total_flags += 1
+            for flag in flags:
+                flag_type = flag.get("type", "Unknown")
+                flag_counts[flag_type] = flag_counts.get(flag_type, 0) + 1
         
-        # Calculate health score (simplified version)
-        # Higher score = better emotional health (fewer flags)
-        health_score = 100
-        if analyses:
-            avg_flags_per_message = total_flags / len(analyses)
-            # Subtract points based on average flags per message
-            health_score = max(0, 100 - (avg_flags_per_message * 20))
-            # Adjust further if negative sentiment dominates
-            if sentiments and sentiments.count("negative") > len(sentiments) / 2:
-                health_score = max(0, health_score - 15)
+        # Calculate health score (simple algorithm for demo)
+        flag_ratio = total_flags / total_analyses
+        health_score = max(0, min(100, int(100 - (flag_ratio * 100))))
         
-        # Sort flag counts for graph
-        sorted_flags = sorted(flag_counts.items(), key=lambda x: x[1], reverse=True)
+        # Build sentiment timeline
+        sentiment_timeline = []
+        dates_seen = set()
+        for result in analysis_results:
+            date = result.get("created_at", "").split("T")[0]
+            if date and date not in dates_seen:
+                dates_seen.add(date)
+                sentiment_timeline.append([date, result.get("sentiment", "neutral")])
         
-        # Format the response
-        dashboard_data = {
-            "health_score": round(health_score),
-            "flag_counts": dict(sorted_flags),
-            "sentiment_timeline": list(zip(dates, sentiments)) if dates else [],
-            "total_analyses": len(analyses),
-            "total_flags_detected": total_flags
-        }
+        # Sort chronologically
+        sentiment_timeline.sort(key=lambda x: x[0])
         
-        return dashboard_data
-    
-    except Exception as e:
-        print(f"Error generating dashboard data: {str(e)}")
         return {
-            "health_score": 100,
-            "flag_counts": {},
-            "sentiment_timeline": [],
-            "total_analyses": 0,
-            "total_flags_detected": 0
+            "health_score": health_score,
+            "total_analyses": total_analyses,
+            "total_flags_detected": total_flags,
+            "flag_counts": flag_counts,
+            "sentiment_timeline": sentiment_timeline
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve dashboard data: {str(e)}")
 
+@app.get("/api/relationships")
+async def get_relationships():
+    try:
+        relationships = await db.relationships.find().sort("created_at", -1).to_list(50)
+        return parse_json(relationships)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve relationships: {str(e)}")
+
+@app.post("/api/relationships", response_model=Relationship)
+async def create_relationship(relationship: Relationship):
+    try:
+        await db.relationships.insert_one(relationship.dict())
+        return relationship
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create relationship: {str(e)}")
+
+@app.get("/api/relationships/{relationship_id}")
+async def get_relationship(relationship_id: str):
+    try:
+        relationship = await db.relationships.find_one({"id": relationship_id})
+        if not relationship:
+            raise HTTPException(status_code=404, detail="Relationship not found")
+        return parse_json(relationship)
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve relationship: {str(e)}")
+
+@app.get("/api/growth-plan")
+async def get_growth_plan(user_id: Optional[str] = None):
+    try:
+        # In a real app, we'd filter by user_id
+        growth_plan = await db.growth_plans.find_one({"user_id": user_id} if user_id else {})
+        
+        if not growth_plan:
+            # Create a default growth plan
+            default_plan = GrowthPlan(
+                user_id=user_id,
+                current_week=WeeklyPlan(
+                    theme="Emotional self-validation",
+                    days=[
+                        GrowthActivity(
+                            day=1,
+                            title="Understanding Self-Validation",
+                            activity_type="Guided Self-Inquiry",
+                            content="Reflect on when you've dismissed your own feelings. What triggers self-doubt about your emotional responses?"
+                        ),
+                        GrowthActivity(
+                            day=2,
+                            title="Recognizing Emotional Patterns",
+                            activity_type="Emotional Pattern Reframe",
+                            content="Identify a recurring emotional response that you often judge. How would you respond to a friend with the same feelings?"
+                        ),
+                        GrowthActivity(
+                            day=3,
+                            title="Practice Validating Language",
+                            activity_type="Practice/Script Challenge",
+                            content="Write three statements that validate your feelings about a recent difficult situation."
+                        ),
+                        GrowthActivity(
+                            day=4,
+                            title="Micro-Ritual",
+                            activity_type="Daily Practice",
+                            content="Each time you notice self-criticism today, place a hand over your heart and say 'This feeling is valid.'"
+                        ),
+                        GrowthActivity(
+                            day=5,
+                            title="Weekly Reflection",
+                            activity_type="Journal Prompt",
+                            content="How has validating your emotions changed your interactions this week? What differences did you notice?"
+                        )
+                    ]
+                ),
+                goals=[
+                    "Affirm my feelings without judgment",
+                    "Recognize when I'm dismissing my own emotions",
+                    "Respond to myself with the same compassion I'd offer others"
+                ]
+            )
+            
+            await db.growth_plans.insert_one(default_plan.dict())
+            return default_plan
+        
+        return parse_json(growth_plan)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve growth plan: {str(e)}")
+
+@app.post("/api/journal-entry")
+async def create_journal_entry(
+    request: Request,
+    background_tasks: BackgroundTasks
+):
+    try:
+        data = await request.json()
+        entry = {
+            "id": str(uuid.uuid4()),
+            "user_id": data.get("user_id"),
+            "content": data.get("content"),
+            "day": data.get("day"),
+            "activity_id": data.get("activity_id"),
+            "created_at": datetime.now().isoformat()
+        }
+        
+        await db.journal_entries.insert_one(entry)
+        
+        # In a real app, we would queue a background task to analyze the journal entry
+        # and update the user's growth plan based on the content
+        
+        return {"success": True, "id": entry["id"]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save journal entry: {str(e)}")
+
+# Run the server if executed directly
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("server:app", host="0.0.0.0", port=8001, reload=True)
