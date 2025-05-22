@@ -263,6 +263,12 @@ test_plan:
     - "Relationships endpoint"
     - "Growth plan endpoint"
     - "Two-sided conversation analysis"
+    - "Create relationship endpoint"
+    - "Get relationship by ID endpoint"
+    - "Update relationship endpoint"
+    - "Delete relationship endpoint"
+    - "Analyze relationship message endpoint"
+    - "Get relationship history endpoint"
   stuck_tasks: []
   test_all: true
   test_priority: "high_first"
@@ -272,3 +278,5 @@ agent_communication:
     message: "All backend API endpoints have been tested and are working correctly. The health endpoint returns the expected status. The analyze endpoint correctly identifies sentiment and flags in messages. The dashboard endpoint provides all required metrics. The relationships endpoint allows creating and retrieving relationships. The growth plan endpoint returns a valid growth plan with activities and goals."
   - agent: "testing"
     message: "The improved Message Analyzer API now successfully supports two-sided conversations. The API correctly identifies flags from both 'Their message' and 'Your response' parts of the conversation, provides appropriate interpretation of the conversation dynamics, and offers relevant suggestions for healthier communication."
+  - agent: "testing"
+    message: "All relationship endpoints have been tested and are working correctly. The API successfully supports creating, retrieving, updating, and deleting relationships. It also allows analyzing messages in the context of a relationship and retrieving the history and analytics for a relationship. All endpoints return the expected data and handle errors appropriately."
