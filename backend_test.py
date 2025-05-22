@@ -65,6 +65,17 @@ class MyAITester:
             200,
             data={"text": message_text}
         )
+        
+    def test_analyze_conversation(self, their_message, your_response):
+        """Test two-sided conversation analysis"""
+        conversation_text = f"Their message: {their_message}\n\nYour response: {your_response}"
+        return self.run_test(
+            "Two-sided Conversation Analysis",
+            "POST",
+            "api/analyze",
+            200,
+            data={"text": conversation_text}
+        )
 
     def test_get_analysis_history(self):
         """Test retrieving analysis history"""
