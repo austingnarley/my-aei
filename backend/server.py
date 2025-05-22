@@ -155,12 +155,21 @@ async def analyze_message(request: MessageAnalysisRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
-@app.get("/api/analysis/{analysis_id}", response_model=AnalysisResult)
+@app.get("/api/analysis/{analysis_id}")
 async def get_analysis(analysis_id: str):
     """Get a specific analysis by ID"""
     result = db.analysis_results.find_one({"id": analysis_id})
     if not result:
         raise HTTPException(status_code=404, detail="Analysis not found")
+    
+    # Convert MongoDB _id to string
+    if "_id" in result:
+        result["_id"] = str(result["_id"])
+    
+    # Convert datetime to ISO format string
+    if "created_at" in result and isinstance(result["created_at"], datetime):
+        result["created_at"] = result["created_at"].isoformat()
+        
     return result
 
 @app.get("/api/history")
