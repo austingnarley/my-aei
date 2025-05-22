@@ -73,23 +73,6 @@ const PrivacyBanner = ({ onAccept }) => (
     </div>
   </div>
 );
-  <div className="fixed bottom-0 left-0 right-0 bg-gray-900 text-white py-4 px-6 shadow-lg z-50">
-    <div className="container mx-auto">
-      <div className="flex flex-col md:flex-row justify-between items-center">
-        <p className="mb-4 md:mb-0 text-sm">
-          <span className="font-bold">Privacy Notice:</span> Text is sent to an AI service for analysis (encrypted in transit).
-          You can disable this in Settings.
-        </p>
-        <button 
-          onClick={onAccept}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md transition-colors text-sm"
-        >
-          Accept & Continue
-        </button>
-      </div>
-    </div>
-  </div>
-);
 
 const FlagCard = ({ flag }) => {
   // Helper to determine severity color
