@@ -163,14 +163,15 @@ async def get_analysis(analysis_id: str):
         raise HTTPException(status_code=404, detail="Analysis not found")
     return result
 
-@app.get("/api/analysis/history", response_model=List[AnalysisResult])
+@app.get("/api/analysis/history")
 async def get_analysis_history(limit: int = Query(10, ge=1, le=50)):
     """Get history of previous analyses"""
-    results = list(db.analysis_results.find().sort("created_at", -1).limit(limit))
-    # Ensure we never return an empty list as a 404
-    if not results:
+    try:
+        results = list(db.analysis_results.find().sort("created_at", -1).limit(limit))
+        return results if results else []
+    except Exception as e:
+        print(f"Error retrieving analysis history: {str(e)}")
         return []
-    return results
 
 if __name__ == "__main__":
     import uvicorn
