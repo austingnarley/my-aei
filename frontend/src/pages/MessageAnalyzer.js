@@ -121,6 +121,19 @@ const MessageAnalyzer = () => {
               </div>
             ))}
           </div>
+          
+          {/* Faith-Based Perspective (when Faith Mode is enabled) */}
+          {faithModeEnabled && (
+            <div className="mt-6">
+              <h4 className="text-md font-medium text-gray-800 mb-3">Faith Perspective</h4>
+              <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-lg">
+                <p className="text-sm text-gray-800">
+                  {getFaithContent('reframe') || 
+                   "Consider how your faith tradition might guide you to approach this conversation with compassion, understanding, and wisdom."}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
