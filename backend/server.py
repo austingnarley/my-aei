@@ -191,6 +191,70 @@ async def get_analysis_history(limit: int = Query(10, ge=1, le=50)):
         print(f"Error retrieving analysis history: {str(e)}")
         return []
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("server:app", host="0.0.0.0", port=8001, reload=True)
+@app.get("/api/dashboard")
+async def get_dashboard_data():
+    """Get dashboard statistics and metrics"""
+    try:
+        # Get recent analyses (last 20)
+        analyses = list(db.analysis_results.find().sort("created_at", -1).limit(20))
+        
+        # Initialize counters and metrics
+        flag_counts = {}
+        sentiments = []
+        total_flags = 0
+        dates = []
+        
+        # Process each analysis
+        for analysis in analyses:
+            # Track dates for timeline
+            if "created_at" in analysis and isinstance(analysis["created_at"], datetime):
+                dates.append(analysis["created_at"].isoformat())
+            
+            # Track sentiments
+            if "overall_sentiment" in analysis:
+                sentiments.append(analysis["overall_sentiment"])
+            
+            # Count flags by type
+            if "flags" in analysis:
+                for flag in analysis["flags"]:
+                    flag_type = flag.get("type")
+                    if flag_type:
+                        if flag_type not in flag_counts:
+                            flag_counts[flag_type] = 0
+                        flag_counts[flag_type] += 1
+                        total_flags += 1
+        
+        # Calculate health score (simplified version)
+        # Higher score = better emotional health (fewer flags)
+        health_score = 100
+        if analyses:
+            avg_flags_per_message = total_flags / len(analyses)
+            # Subtract points based on average flags per message
+            health_score = max(0, 100 - (avg_flags_per_message * 20))
+            # Adjust further if negative sentiment dominates
+            if sentiments and sentiments.count("negative") > len(sentiments) / 2:
+                health_score = max(0, health_score - 15)
+        
+        # Sort flag counts for graph
+        sorted_flags = sorted(flag_counts.items(), key=lambda x: x[1], reverse=True)
+        
+        # Format the response
+        dashboard_data = {
+            "health_score": round(health_score),
+            "flag_counts": dict(sorted_flags),
+            "sentiment_timeline": list(zip(dates, sentiments)) if dates else [],
+            "total_analyses": len(analyses),
+            "total_flags_detected": total_flags
+        }
+        
+        return dashboard_data
+    
+    except Exception as e:
+        print(f"Error generating dashboard data: {str(e)}")
+        return {
+            "health_score": 100,
+            "flag_counts": {},
+            "sentiment_timeline": [],
+            "total_analyses": 0,
+            "total_flags_detected": 0
+        }
