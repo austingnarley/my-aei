@@ -107,10 +107,10 @@ async def analyze_message(message_input: MessageInput):
     
     # Prepare the prompt for the LLM
     prompt = f"""
-    You are an emotional intelligence and relationship clarity assistant. Analyze the following message for emotional red flags, 
+    You are an emotional intelligence and relationship clarity assistant. Analyze the following conversation for emotional red flags, 
     communication patterns, and relationship dynamics. If any red flags are present, identify them specifically.
 
-    MESSAGE:
+    CONVERSATION:
     {message_input.text}
     
     {f"CONTEXT: {message_input.context}" if message_input.context else ""}
@@ -118,18 +118,20 @@ async def analyze_message(message_input: MessageInput):
     Provide a comprehensive analysis in the following format:
     
     1. Identify any emotional red flags from this list (or others you detect):
-       - Gaslighting
-       - Guilt-tripping
-       - Blame-shifting
-       - Stonewalling
-       - Invalidation
-       - Passive aggression
-       - Emotional manipulation
-       - Controlling behavior
+       - Gaslighting (denial of someone's reality or experience)
+       - Guilt-tripping (making someone feel responsible for your emotions)
+       - Blame-shifting (redirecting responsibility to avoid accountability)
+       - Stonewalling (refusing to communicate or engage)
+       - Invalidation (dismissing someone's feelings as unimportant)
+       - Passive aggression (indirect expression of hostility)
+       - Emotional manipulation (using emotions to control)
+       - Controlling behavior (attempting to dictate someone's actions)
+       - Non-apology (apologizing without taking responsibility)
+       - Defensiveness (protecting oneself at the expense of listening)
     
-    2. Provide an interpretation of the emotional dynamics.
+    2. Provide an interpretation of the emotional dynamics between both parties in the conversation.
     
-    3. Suggest constructive responses or boundaries if needed.
+    3. Suggest constructive responses or boundaries for healthier communication.
     
     4. Determine the overall sentiment (positive, neutral, or negative).
     
