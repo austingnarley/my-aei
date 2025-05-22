@@ -142,6 +142,10 @@ def main():
     tester = MyAITester()
     test_message = "You are always so dramatic. This would not have happened if you just listened to me in the first place. I cannot believe I have to deal with this after all I have done for you."
     
+    # Two-sided conversation test data
+    their_message = "I didn't say that. You're imagining things again. I never said I would help with the project."
+    your_response = "I already told you multiple times. It's not my fault you don't remember. Stop blaming me for your poor memory."
+    
     # Run tests
     print("\n===== Testing Emotional Intelligence API =====")
     print(f"Testing against: {tester.base_url}")
@@ -168,6 +172,28 @@ def main():
         if analysis_data.get('suggestions'):
             print("\nSuggestions:")
             for suggestion in analysis_data.get('suggestions', []):
+                print(f"  - {suggestion}")
+    
+    # Test two-sided conversation analysis
+    print("\n===== Testing Two-sided Conversation Analysis =====")
+    conversation_success, conversation_data = tester.test_analyze_conversation(their_message, your_response)
+    if conversation_success:
+        print("\nTwo-sided Conversation Analysis results:")
+        print(f"- ID: {conversation_data.get('id')}")
+        print(f"- Sentiment: {conversation_data.get('sentiment')}")
+        print(f"- Flags detected: {len(conversation_data.get('flags', []))}")
+        
+        # Print detected flags
+        for flag in conversation_data.get('flags', []):
+            print(f"  - {flag.get('type')}: {flag.get('description')}")
+        
+        # Print interpretation
+        print(f"\nInterpretation: {conversation_data.get('interpretation')}")
+        
+        # Print suggestions
+        if conversation_data.get('suggestions'):
+            print("\nSuggestions:")
+            for suggestion in conversation_data.get('suggestions', []):
                 print(f"  - {suggestion}")
     
     # Test analysis history
