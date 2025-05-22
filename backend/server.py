@@ -155,6 +155,17 @@ async def analyze_message(message_input: MessageInput):
         
         # Simple keyword detection for demo
         lower_text = message_input.text.lower()
+        
+        # Check for gaslighting patterns
+        if (("never said" in lower_text or "didn't say" in lower_text or "you're imagining" in lower_text) and 
+            ("their message:" in lower_text or "what did they say" in lower_text)):
+            flags.append(Flag(
+                type="Gaslighting",
+                description="Denying someone's reality or memory of events."
+            ))
+            sentiment = "negative"
+        
+        # Check for invalidation
         if "never" in lower_text and "you" in lower_text:
             flags.append(Flag(
                 type="Invalidation",
@@ -162,6 +173,7 @@ async def analyze_message(message_input: MessageInput):
             ))
             sentiment = "negative"
         
+        # Check for controlling behavior
         if "should" in lower_text and "you" in lower_text:
             flags.append(Flag(
                 type="Controlling behavior",
@@ -169,6 +181,7 @@ async def analyze_message(message_input: MessageInput):
             ))
             sentiment = "negative"
         
+        # Check for blame-shifting
         if "always" in lower_text and "you" in lower_text:
             flags.append(Flag(
                 type="Blame-shifting",
@@ -176,10 +189,29 @@ async def analyze_message(message_input: MessageInput):
             ))
             sentiment = "negative"
         
+        # Check for non-apology
         if "sorry but" in lower_text:
             flags.append(Flag(
                 type="Non-apology",
                 description="Using 'sorry but' often negates the apology that precedes it."
+            ))
+            sentiment = "negative"
+            
+        # Check for defensiveness
+        if ("i already told you" in lower_text or "not my fault" in lower_text or 
+            "stop blaming me" in lower_text) and "your response:" in lower_text:
+            flags.append(Flag(
+                type="Defensiveness",
+                description="Responding to concerns with self-protection rather than listening."
+            ))
+            sentiment = "negative"
+        
+        # Detect emotional manipulation
+        if ("you don't care about me" in lower_text or "if you loved me" in lower_text or 
+            "after all i've done for you" in lower_text):
+            flags.append(Flag(
+                type="Emotional manipulation",
+                description="Using emotional appeals to control or influence behavior."
             ))
             sentiment = "negative"
         
