@@ -167,8 +167,17 @@ async def get_analysis(analysis_id: str):
 async def get_analysis_history(limit: int = Query(10, ge=1, le=50)):
     """Get history of previous analyses"""
     try:
-        results = list(db.analysis_results.find().sort("created_at", -1).limit(limit))
-        return results if results else []
+        cursor = db.analysis_results.find().sort("created_at", -1).limit(limit)
+        results = []
+        for doc in cursor:
+            # Convert MongoDB _id to string
+            if "_id" in doc:
+                doc["_id"] = str(doc["_id"])
+            # Convert datetime to ISO format string
+            if "created_at" in doc and isinstance(doc["created_at"], datetime):
+                doc["created_at"] = doc["created_at"].isoformat()
+            results.append(doc)
+        return results
     except Exception as e:
         print(f"Error retrieving analysis history: {str(e)}")
         return []
