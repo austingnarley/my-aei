@@ -83,6 +83,15 @@ class MyAITester:
             "api/history",
             200
         )
+        
+    def test_get_dashboard_data(self):
+        """Test retrieving dashboard data"""
+        return self.run_test(
+            "Get Dashboard Data",
+            "GET",
+            "api/dashboard",
+            200
+        )
 
 def main():
     # Setup
