@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useAppContext } from '../contexts/AppContext';
 
 const MessageAnalyzer = () => {
-  const [message, setMessage] = useState('');
+  const [theirMessage, setTheirMessage] = useState('');
+  const [yourMessage, setYourMessage] = useState('');
   const [context, setContext] = useState('');
   const [selectedRelationship, setSelectedRelationship] = useState('');
   const [result, setResult] = useState(null);
@@ -18,16 +19,25 @@ const MessageAnalyzer = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!message.trim()) return;
+    
+    // Make sure at least one of the message fields is filled
+    if (!theirMessage.trim() && !yourMessage.trim()) return;
 
+    // Combine messages into a conversation format
+    const conversationText = [
+      theirMessage.trim() ? `Their message: ${theirMessage}` : '',
+      yourMessage.trim() ? `Your response: ${yourMessage}` : ''
+    ].filter(Boolean).join('\n\n');
+    
     try {
       const data = await analyzeMessage(
-        message, 
+        conversationText, 
         context || null, 
         selectedRelationship || null
       );
       setResult(data);
-      setMessage('');
+      setTheirMessage('');
+      setYourMessage('');
       setContext('');
     } catch (err) {
       console.error('Analysis submission error:', err);
@@ -53,8 +63,8 @@ const MessageAnalyzer = () => {
         
         {/* Original Text */}
         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Message Text</h4>
-          <p className="text-gray-800">{analysis.text}</p>
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Conversation</h4>
+          <div className="whitespace-pre-wrap text-gray-800">{analysis.text}</div>
         </div>
         
         {/* Flags Section */}
@@ -83,7 +93,7 @@ const MessageAnalyzer = () => {
               <div className="flex items-start">
                 <div className="w-3 h-3 mt-1 rounded-full mr-2 bg-green-500"></div>
                 <p className="text-sm text-gray-800">
-                  No emotional red flags detected in this message.
+                  No emotional red flags detected in this conversation.
                 </p>
               </div>
             </div>
@@ -118,7 +128,7 @@ const MessageAnalyzer = () => {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Message Analyzer</h1>
         <p className="text-gray-600 mt-2">
-          Scan your messages, emails, DMs, or journal entries to uncover emotional patterns and receive insights.
+          Analyze conversations to uncover emotional patterns and identify potential red flags in both messages.
         </p>
       </div>
 
@@ -127,7 +137,7 @@ const MessageAnalyzer = () => {
         <div className={`lg:col-span-${historyView ? 1 : 2}`}>
           <div className="bg-white rounded-xl shadow-md p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-800">New Analysis</h2>
+              <h2 className="text-xl font-semibold text-gray-800">New Conversation Analysis</h2>
               <button
                 onClick={() => setHistoryView(!historyView)}
                 className="text-sm text-indigo-600 hover:text-indigo-800"
@@ -154,18 +164,34 @@ const MessageAnalyzer = () => {
               </div>
               
               <div className="mb-4">
-                <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
-                  Message Text
+                <label htmlFor="theirMessage" className="block text-sm font-medium text-gray-700 mb-1">
+                  Their Message
                 </label>
                 <textarea
-                  id="message"
-                  rows="8"
+                  id="theirMessage"
+                  rows="5"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Paste a message, email, or journal entry here..."
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  required
+                  placeholder="What did they say? Paste their message here..."
+                  value={theirMessage}
+                  onChange={(e) => setTheirMessage(e.target.value)}
                 ></textarea>
+              </div>
+              
+              <div className="mb-4">
+                <label htmlFor="yourMessage" className="block text-sm font-medium text-gray-700 mb-1">
+                  Your Response
+                </label>
+                <textarea
+                  id="yourMessage"
+                  rows="5"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="What did you say in response? (Optional)"
+                  value={yourMessage}
+                  onChange={(e) => setYourMessage(e.target.value)}
+                ></textarea>
+                <p className="text-xs text-gray-500 mt-1">
+                  *At least one of the message fields is required
+                </p>
               </div>
               
               <div className="mb-6">
@@ -190,9 +216,9 @@ const MessageAnalyzer = () => {
               
               <button
                 type="submit"
-                disabled={isLoading || !message.trim()}
+                disabled={isLoading || (!theirMessage.trim() && !yourMessage.trim())}
                 className={`w-full py-3 px-4 rounded-md font-medium text-white transition-colors ${
-                  isLoading || !message.trim()
+                  isLoading || (!theirMessage.trim() && !yourMessage.trim())
                     ? 'bg-indigo-400 cursor-not-allowed'
                     : 'bg-indigo-600 hover:bg-indigo-700'
                 }`}
@@ -206,7 +232,7 @@ const MessageAnalyzer = () => {
                     Analyzing...
                   </span>
                 ) : (
-                  'Analyze Message'
+                  'Analyze Conversation'
                 )}
               </button>
             </form>
@@ -275,7 +301,7 @@ const MessageAnalyzer = () => {
                 </svg>
               </div>
               <h3 className="text-lg font-medium text-gray-800 mb-2">
-                Enter a message to analyze
+                Enter conversation to analyze
               </h3>
               <p className="text-gray-600 mb-4">
                 Your analysis results will appear here
