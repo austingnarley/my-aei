@@ -11,16 +11,16 @@ const Header = () => (
           <span className="text-sm bg-purple-900 px-2 py-1 rounded-md opacity-75">Alpha</span>
         </div>
         <nav className="hidden md:flex space-x-8">
-          <a href="#analyzer" className="font-medium hover:text-purple-300 transition-colors border-b-2 border-white">
+          <a href="#analyzer" className="font-medium hover:text-purple-300 transition-colors">
             Message Analyzer
           </a>
-          <a href="#" className="font-medium text-purple-300 hover:text-white transition-colors">
+          <a href="#dashboard" className="font-medium hover:text-purple-300 transition-colors">
             Dashboard
           </a>
-          <a href="#" className="font-medium text-purple-300 hover:text-white transition-colors">
+          <a href="#" className="font-medium text-purple-300 hover:text-white transition-colors opacity-50">
             Relationships
           </a>
-          <a href="#" className="font-medium text-purple-300 hover:text-white transition-colors">
+          <a href="#" className="font-medium text-purple-300 hover:text-white transition-colors opacity-50">
             Growth Center
           </a>
         </nav>
