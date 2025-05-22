@@ -124,7 +124,10 @@ async def analyze_message(request: MessageAnalysisRequest):
         ai_response = response.choices[0].message.content
         try:
             analysis = json.loads(ai_response)
-        except json.JSONDecodeError:
+            print(f"Successfully parsed AI response: {analysis}")
+        except json.JSONDecodeError as e:
+            print(f"Error parsing AI response: {ai_response}")
+            print(f"JSONDecodeError: {str(e)}")
             # If AI doesn't return valid JSON, create a basic structure
             analysis = {
                 "flags": [],
