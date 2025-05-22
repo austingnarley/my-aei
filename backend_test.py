@@ -132,6 +132,44 @@ class MyAITester:
             200
         )
     
+    def test_update_relationship(self, relationship_id, update_data):
+        """Test updating a relationship"""
+        return self.run_test(
+            "Update Relationship",
+            "PUT",
+            f"api/relationships/{relationship_id}",
+            200,
+            data=update_data
+        )
+    
+    def test_delete_relationship(self, relationship_id):
+        """Test deleting a relationship"""
+        return self.run_test(
+            "Delete Relationship",
+            "DELETE",
+            f"api/relationships/{relationship_id}",
+            200
+        )
+    
+    def test_analyze_relationship_message(self, relationship_id, message_text):
+        """Test analyzing a message in the context of a relationship"""
+        return self.run_test(
+            "Analyze Relationship Message",
+            "POST",
+            f"api/relationships/{relationship_id}/analyze",
+            200,
+            data={"text": message_text}
+        )
+    
+    def test_get_relationship_history(self, relationship_id):
+        """Test getting the history and analytics for a relationship"""
+        return self.run_test(
+            "Get Relationship History",
+            "GET",
+            f"api/relationships/{relationship_id}/history",
+            200
+        )
+    
     def test_get_growth_plan(self):
         """Test retrieving growth plan"""
         return self.run_test(
