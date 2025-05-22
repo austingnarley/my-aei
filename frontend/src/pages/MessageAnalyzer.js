@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../contexts/AppContext';
+import { useFaith } from '../contexts/FaithContext';
 
 const MessageAnalyzer = () => {
   const [theirMessage, setTheirMessage] = useState('');
@@ -16,6 +17,8 @@ const MessageAnalyzer = () => {
     analysisHistory,
     relationships
   } = useAppContext();
+
+  const { faithModeEnabled, getFaithContent } = useFaith();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
