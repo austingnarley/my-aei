@@ -267,6 +267,54 @@ def main():
         get_rel_success, relationship_data = tester.test_get_relationship_by_id(relationship_id)
         if get_rel_success:
             print(f"Retrieved relationship: {relationship_data.get('name')}")
+        
+        # Test updating a relationship
+        update_data = {
+            "name": "Updated Test Relationship",
+            "notes": "This relationship has been updated"
+        }
+        update_rel_success, updated_relationship = tester.test_update_relationship(relationship_id, update_data)
+        if update_rel_success:
+            print(f"Updated relationship name to: {updated_relationship.get('name')}")
+            print(f"Updated relationship notes to: {updated_relationship.get('notes')}")
+        
+        # Test analyzing a message in the context of a relationship
+        relationship_message = "I feel like you never listen to me when I'm trying to explain something important."
+        analyze_rel_success, analyze_rel_data = tester.test_analyze_relationship_message(relationship_id, relationship_message)
+        if analyze_rel_success:
+            print("\nRelationship message analysis results:")
+            print(f"- ID: {analyze_rel_data.get('id')}")
+            print(f"- Relationship ID: {analyze_rel_data.get('relationship_id')}")
+            print(f"- Relationship Name: {analyze_rel_data.get('relationship_name')}")
+            print(f"- Sentiment: {analyze_rel_data.get('sentiment')}")
+            print(f"- Flags detected: {len(analyze_rel_data.get('flags', []))}")
+            
+            # Print detected flags
+            for flag in analyze_rel_data.get('flags', []):
+                print(f"  - {flag.get('type')}: {flag.get('description')}")
+        
+        # Test getting relationship history
+        history_rel_success, history_rel_data = tester.test_get_relationship_history(relationship_id)
+        if history_rel_success:
+            print("\nRelationship history and analytics:")
+            print(f"- Relationship: {history_rel_data.get('relationship', {}).get('name')}")
+            print(f"- Number of analyses: {len(history_rel_data.get('analyses', []))}")
+            print(f"- Health trend data points: {len(history_rel_data.get('health_trend', []))}")
+            print(f"- Sentiment counts: {history_rel_data.get('sentiment_counts')}")
+            print(f"- Flag types: {history_rel_data.get('flag_types')}")
+        
+        # Test deleting a relationship
+        delete_rel_success, delete_rel_data = tester.test_delete_relationship(relationship_id)
+        if delete_rel_success:
+            print(f"\nDeleted relationship: {delete_rel_data.get('message')}")
+            
+            # Verify the relationship is deleted by trying to get it again
+            verify_delete_success, _ = tester.test_get_relationship_by_id(relationship_id)
+            if not verify_delete_success:
+                print("✅ Verified relationship was successfully deleted")
+                tester.tests_passed += 1  # Count this verification as a passed test
+            else:
+                print("❌ Relationship still exists after deletion attempt")
     
     # Test growth plan
     growth_plan_success, growth_plan_data = tester.test_get_growth_plan()
