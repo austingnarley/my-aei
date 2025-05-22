@@ -135,6 +135,15 @@ def main():
     if history_success:
         print(f"\nRetrieved {len(history_data)} analysis records from history")
     
+    # Test dashboard data
+    dashboard_success, dashboard_data = tester.test_get_dashboard_data()
+    if dashboard_success:
+        print("\nDashboard data:")
+        print(f"- Health score: {dashboard_data.get('health_score')}")
+        print(f"- Total analyses: {dashboard_data.get('total_analyses')}")
+        print(f"- Total flags detected: {dashboard_data.get('total_flags_detected')}")
+        print(f"- Flag counts: {dashboard_data.get('flag_counts')}")
+    
     # Print results
     print(f"\n📊 Tests passed: {tester.tests_passed}/{tester.tests_run}")
     return 0 if tester.tests_passed == tester.tests_run else 1
