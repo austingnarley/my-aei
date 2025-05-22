@@ -80,7 +80,7 @@ class MyAITester:
         return self.run_test(
             "Get Analysis History",
             "GET",
-            "api/analysis/history",
+            "api/history",
             200
         )
 
