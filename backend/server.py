@@ -156,6 +156,9 @@ async def get_analysis(analysis_id: str):
 async def get_analysis_history(limit: int = Query(10, ge=1, le=50)):
     """Get history of previous analyses"""
     results = list(db.analysis_results.find().sort("created_at", -1).limit(limit))
+    # Ensure we never return an empty list as a 404
+    if not results:
+        return []
     return results
 
 if __name__ == "__main__":
