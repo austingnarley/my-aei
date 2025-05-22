@@ -1,22 +1,20 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../contexts/AppContext';
+import { useFaith, FAITH_OPTIONS } from '../contexts/FaithContext';
 
 const GrowthCenter = () => {
   const { growthPlan } = useAppContext();
+  const { 
+    faithModeEnabled, 
+    selectedFaith, 
+    toggleFaithMode, 
+    changeFaith, 
+    getFaithContent 
+  } = useFaith();
+  
   const [activeDay, setActiveDay] = useState(1);
-  const [showFaithMode, setShowFaithMode] = useState(false);
-  const [selectedFaith, setSelectedFaith] = useState('');
   const [journalEntry, setJournalEntry] = useState('');
   const [journalSubmitted, setJournalSubmitted] = useState(false);
-  
-  const faithOptions = [
-    { id: 'christianity', name: 'Christianity' },
-    { id: 'buddhism', name: 'Buddhism' },
-    { id: 'islam', name: 'Islam' },
-    { id: 'judaism', name: 'Judaism' },
-    { id: 'hinduism', name: 'Hinduism' },
-    { id: 'spiritual', name: 'Non-denominational Spiritual' }
-  ];
   
   const handleJournalSubmit = (e) => {
     e.preventDefault();
@@ -26,13 +24,6 @@ const GrowthCenter = () => {
     console.log('Journal submitted:', journalEntry);
     setJournalSubmitted(true);
     // Don't clear the entry to allow the user to see what they submitted
-  };
-  
-  const handleFaithToggle = () => {
-    setShowFaithMode(!showFaithMode);
-    if (!showFaithMode && !selectedFaith) {
-      setSelectedFaith('spiritual'); // Default selection
-    }
   };
 
   if (!growthPlan) {
@@ -58,14 +49,14 @@ const GrowthCenter = () => {
           <div className="flex items-center">
             <span className="text-sm text-gray-600 mr-2">Faith Mode</span>
             <button
-              onClick={handleFaithToggle}
+              onClick={toggleFaithMode}
               className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none ${
-                showFaithMode ? 'bg-indigo-600' : 'bg-gray-300'
+                faithModeEnabled ? 'bg-indigo-600' : 'bg-gray-300'
               }`}
             >
               <span
                 className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${
-                  showFaithMode ? 'translate-x-6' : 'translate-x-1'
+                  faithModeEnabled ? 'translate-x-6' : 'translate-x-1'
                 }`}
               />
             </button>
@@ -74,7 +65,7 @@ const GrowthCenter = () => {
       </div>
 
       {/* Faith Selection (visible only when Faith Mode is on) */}
-      {showFaithMode && (
+      {faithModeEnabled && (
         <div className="bg-indigo-50 p-6 rounded-xl mb-8">
           <h2 className="text-lg font-semibold text-indigo-900 mb-4">Faith Framework</h2>
           <p className="text-gray-700 mb-4">
@@ -82,10 +73,10 @@ const GrowthCenter = () => {
           </p>
           
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            {faithOptions.map(option => (
+            {FAITH_OPTIONS.map(option => (
               <button
                 key={option.id}
-                onClick={() => setSelectedFaith(option.id)}
+                onClick={() => changeFaith(option.id)}
                 className={`p-3 rounded-lg text-center transition-colors ${
                   selectedFaith === option.id
                     ? 'bg-indigo-200 text-indigo-800'
@@ -135,7 +126,7 @@ const GrowthCenter = () => {
                   <p className="text-gray-700">{day.content}</p>
                   
                   {/* Faith-specific content (shown only in Faith Mode) */}
-                  {showFaithMode && selectedFaith && (
+                  {faithModeEnabled && selectedFaith && (
                     <div className="mt-6 p-4 bg-indigo-50 rounded-lg border border-indigo-100">
                       <h4 className="text-md font-medium text-indigo-800 mb-2">
                         {selectedFaith === 'christianity' ? 'Scripture Reflection' : 
@@ -146,22 +137,8 @@ const GrowthCenter = () => {
                          'Spiritual Perspective'}
                       </h4>
                       <p className="text-gray-700">
-                        {selectedFaith === 'christianity' ? 
-                          '"Do not conform to the pattern of this world, but be transformed by the renewing of your mind." This transformation begins with recognizing your inherent worth and validating your experiences.' :
-                          
-                         selectedFaith === 'buddhism' ? 
-                          'The Buddha teaches us to observe our thoughts without judgment. As you practice emotional self-validation, notice how it cultivates compassion toward yourself and others.' :
-                          
-                         selectedFaith === 'islam' ? 
-                          'Allah created each person with a unique purpose and inherent dignity. Honor the emotions that arise within you as signs pointing toward greater self-awareness.' :
-                          
-                         selectedFaith === 'judaism' ? 
-                          'The Talmud teaches that each person contains worlds within them. Your emotions are valid messengers, worthy of your attention and respect.' :
-                          
-                         selectedFaith === 'hinduism' ? 
-                          'The practice of self-validation aligns with the concept of Ahimsa (non-violence) applied to oneself, honoring your emotions without harsh judgment.' :
-                          
-                         'Every emotion that arises within you has wisdom to offer. By validating rather than judging your feelings, you create space for growth and healing.'}
+                        {getFaithContent('scripture', { theme: growthPlan.current_week.theme }) || 
+                         "Reflect on how this practice aligns with your spiritual values and beliefs."}
                       </p>
                     </div>
                   )}
@@ -221,8 +198,11 @@ const GrowthCenter = () => {
             <div className="bg-green-50 border border-green-100 p-4 rounded-lg">
               <h3 className="font-medium text-green-800 mb-2">Today's Micro-Practice</h3>
               <p className="text-gray-700 mb-4">
-                Take three deep breaths whenever you notice self-criticism today. With each exhale, 
-                mentally say "I acknowledge this feeling without judgment."
+                {faithModeEnabled && getFaithContent('practice') ? (
+                  getFaithContent('practice')
+                ) : (
+                  "Take three deep breaths whenever you notice self-criticism today. With each exhale, mentally say \"I acknowledge this feeling without judgment.\""
+                )}
               </p>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-500">Set a reminder</span>
@@ -233,16 +213,20 @@ const GrowthCenter = () => {
             </div>
             
             <div className="mt-6">
-              <h3 className="font-medium text-gray-800 mb-3">Suggested Scripts</h3>
+              <h3 className="font-medium text-gray-800 mb-3">Emotional Reframe</h3>
               <div className="space-y-3">
                 <div className="bg-purple-50 border border-purple-100 p-3 rounded-lg">
                   <p className="text-sm text-gray-700">
-                    "I notice I'm feeling [emotion] right now, and that's completely valid given the situation."
+                    {faithModeEnabled && getFaithContent('reframe') ? (
+                      getFaithContent('reframe')
+                    ) : (
+                      "Your feelings don't need to be justified to be real. You can acknowledge them without judgment."
+                    )}
                   </p>
                 </div>
                 <div className="bg-purple-50 border border-purple-100 p-3 rounded-lg">
                   <p className="text-sm text-gray-700">
-                    "My feelings don't need to be justified to be real. I can acknowledge them without judgment."
+                    "When you notice emotional reactions, treat them as messengers rather than problems to solve."
                   </p>
                 </div>
               </div>
