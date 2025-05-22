@@ -135,15 +135,17 @@ function App() {
   return (
     <Router>
       <AppProvider>
-        <MainLayout>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/message-analyzer" element={<MessageAnalyzer />} />
-            <Route path="/relationships" element={<RelationshipHub />} />
-            <Route path="/growth-center" element={<GrowthCenter />} />
-          </Routes>
-        </MainLayout>
+        <FaithProvider>
+          <MainLayout>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/message-analyzer" element={<MessageAnalyzer />} />
+              <Route path="/relationships" element={<RelationshipHub />} />
+              <Route path="/growth-center" element={<GrowthCenter />} />
+            </Routes>
+          </MainLayout>
+        </FaithProvider>
       </AppProvider>
     </Router>
   );
