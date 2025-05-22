@@ -4,7 +4,7 @@ import './App.css';
 
 // Context Providers
 import { AppProvider } from './contexts/AppContext';
-import { FaithProvider } from './contexts/FaithContext';
+import { FaithProvider, useFaith } from './contexts/FaithContext';
 
 // Pages (will import these from separate files after creation)
 import Dashboard from './pages/Dashboard';
