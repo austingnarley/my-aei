@@ -55,208 +55,24 @@ const Footer = () => (
   </footer>
 );
 
-const Dashboard = () => {
-  const [dashboardData, setDashboardData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/dashboard`);
-        
-        if (!response.ok) {
-          throw new Error(`Error: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        setDashboardData(data);
-      } catch (err) {
-        console.error('Failed to fetch dashboard data:', err);
-        setError('Failed to load dashboard data. Please try again later.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchDashboardData();
-  }, []);
-
-  // Helper function to format flag types for display
-  const formatFlagType = (type) => {
-    return type
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  };
-
-  // Helper function to get health score color
-  const getHealthScoreColor = (score) => {
-    if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
-    if (score >= 40) return 'text-orange-600';
-    return 'text-red-600';
-  };
-
-  return (
-    <section id="dashboard" className="py-16 bg-gray-50">
-      <div className="container mx-auto px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Emotional Dashboard</h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Your emotional command center for tracking patterns, health scores, and communication trends.
-            </p>
-          </div>
-          
-          {isLoading ? (
-            <div className="flex justify-center py-12">
-              <svg className="animate-spin h-10 w-10 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            </div>
-          ) : error ? (
-            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm text-red-700">{error}</p>
-                </div>
-              </div>
-            </div>
-          ) : dashboardData && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {/* Health Score Card */}
-              <div className="bg-white p-6 rounded-xl shadow-md">
-                <h3 className="text-xl font-semibold text-gray-800 mb-4">Emotional Health Score</h3>
-                <div className="flex items-center justify-center">
-                  <div className="relative w-32 h-32">
-                    <svg className="w-full h-full" viewBox="0 0 36 36">
-                      <path
-                        d="M18 2.0845
-                          a 15.9155 15.9155 0 0 1 0 31.831
-                          a 15.9155 15.9155 0 0 1 0 -31.831"
-                        fill="none"
-                        stroke="#e6e6e6"
-                        strokeWidth="3"
-                        strokeDasharray="100, 100"
-                      />
-                      <path
-                        d="M18 2.0845
-                          a 15.9155 15.9155 0 0 1 0 31.831
-                          a 15.9155 15.9155 0 0 1 0 -31.831"
-                        fill="none"
-                        stroke={dashboardData.health_score >= 80 ? "#10B981" : 
-                                dashboardData.health_score >= 60 ? "#FBBF24" :
-                                dashboardData.health_score >= 40 ? "#F97316" : "#EF4444"}
-                        strokeWidth="3"
-                        strokeDasharray={`${dashboardData.health_score}, 100`}
-                      />
-                    </svg>
-                    <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
-                      <span className={`text-3xl font-bold ${getHealthScoreColor(dashboardData.health_score)}`}>
-                        {dashboardData.health_score}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-4 text-center">
-                  <p className="text-sm text-gray-600">Based on {dashboardData.total_analyses} analyzed messages</p>
-                </div>
-              </div>
-              
-              {/* Flag Incidence Card */}
-              <div className="bg-white p-6 rounded-xl shadow-md">
-                <h3 className="text-xl font-semibold text-gray-800 mb-4">Red Flag Incidence</h3>
-                {Object.keys(dashboardData.flag_counts).length > 0 ? (
-                  <div className="space-y-3">
-                    {Object.entries(dashboardData.flag_counts).map(([flagType, count]) => (
-                      <div key={flagType} className="relative pt-1">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="text-sm font-medium text-gray-700">{formatFlagType(flagType)}</span>
-                          </div>
-                          <div className="text-sm text-gray-600">{count}</div>
-                        </div>
-                        <div className="overflow-hidden h-2 mt-1 text-xs flex rounded bg-gray-200">
-                          <div 
-                            style={{ width: `${(count / dashboardData.total_flags_detected) * 100}%` }}
-                            className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-purple-600"
-                          ></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6">
-                    <p className="text-gray-500 italic">No flags detected yet</p>
-                  </div>
-                )}
-              </div>
-              
-              {/* Timeline Card */}
-              <div className="bg-white p-6 rounded-xl shadow-md">
-                <h3 className="text-xl font-semibold text-gray-800 mb-4">Sentiment Timeline</h3>
-                {dashboardData.sentiment_timeline.length > 0 ? (
-                  <div className="space-y-2 max-h-[320px] overflow-y-auto pr-2">
-                    {dashboardData.sentiment_timeline.map(([date, sentiment], index) => {
-                      const formattedDate = new Date(date).toLocaleString();
-                      return (
-                        <div key={index} className="flex items-center">
-                          <div 
-                            className={`w-3 h-3 rounded-full mr-2 ${
-                              sentiment === 'positive' ? 'bg-green-500' :
-                              sentiment === 'negative' ? 'bg-red-500' :
-                              'bg-gray-500'
-                            }`}
-                          ></div>
-                          <div className="text-sm text-gray-600 truncate flex-grow">{formattedDate}</div>
-                          <div 
-                            className={`text-sm font-medium ml-2 ${
-                              sentiment === 'positive' ? 'text-green-600' :
-                              sentiment === 'negative' ? 'text-red-600' :
-                              'text-gray-600'
-                            }`}
-                          >
-                            {sentiment.charAt(0).toUpperCase() + sentiment.slice(1)}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-6">
-                    <p className="text-gray-500 italic">No sentiment data yet</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          
-          <div className="mt-12 text-center">
-            <img 
-              src="https://images.unsplash.com/photo-1717501218385-55bc3a95be94" 
-              alt="Emotional data visualization" 
-              className="max-w-md mx-auto rounded-lg shadow-md"
-            />
-            <p className="mt-4 text-sm text-gray-500 max-w-xl mx-auto">
-              My ÆI continuously learns from your communication patterns to provide increasingly personalized insights
-              and help you build healthier relationships through emotional intelligence.
-            </p>
-          </div>
-        </div>
+const PrivacyBanner = ({ onAccept }) => (
+  <div className="fixed bottom-0 left-0 right-0 bg-gray-900 text-white py-4 px-6 shadow-lg z-50">
+    <div className="container mx-auto">
+      <div className="flex flex-col md:flex-row justify-between items-center">
+        <p className="mb-4 md:mb-0 text-sm">
+          <span className="font-bold">Privacy Notice:</span> Text is sent to an AI service for analysis (encrypted in transit).
+          You can disable this in Settings.
+        </p>
+        <button 
+          onClick={onAccept}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md transition-colors text-sm"
+        >
+          Accept & Continue
+        </button>
       </div>
-    </section>
-  );
-};
+    </div>
+  </div>
+);
   <div className="fixed bottom-0 left-0 right-0 bg-gray-900 text-white py-4 px-6 shadow-lg z-50">
     <div className="container mx-auto">
       <div className="flex flex-col md:flex-row justify-between items-center">
