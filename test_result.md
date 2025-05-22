@@ -176,6 +176,78 @@ backend:
       - working: true
         agent: "testing"
         comment: "Two-sided conversation analysis is working correctly. The API successfully identifies flags from both 'Their message' and 'Your response' parts. In our test, it detected Gaslighting and Invalidation from 'Their message' and Defensiveness from 'Your response'. The interpretation and suggestions provided are appropriate for the conversation context."
+  
+  - task: "Create relationship endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Create relationship endpoint successfully creates a new relationship with the provided name, type, and notes. The API returns the created relationship with a generated UUID."
+
+  - task: "Get relationship by ID endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Get relationship by ID endpoint successfully retrieves a specific relationship using its ID. All relationship data is correctly returned."
+
+  - task: "Update relationship endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Update relationship endpoint successfully updates a relationship with new data. The API correctly updates only the fields provided and returns the updated relationship."
+
+  - task: "Delete relationship endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Delete relationship endpoint successfully deletes a relationship by ID. The API returns a success message, and subsequent attempts to retrieve the deleted relationship return a 404 error."
+
+  - task: "Analyze relationship message endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Analyze relationship message endpoint successfully analyzes a message in the context of a relationship. The API correctly associates the analysis with the relationship and returns appropriate flags and suggestions."
+
+  - task: "Get relationship history endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Get relationship history endpoint successfully retrieves the history and analytics for a relationship. The API returns the relationship data, analysis history, health trend, sentiment counts, and flag types."
 
 metadata:
   created_by: "testing_agent"
