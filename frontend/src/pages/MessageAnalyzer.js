@@ -81,7 +81,9 @@ const MessageAnalyzer = () => {
                     <div className="w-3 h-3 mt-1 rounded-full mr-2 bg-red-500"></div>
                     <div>
                       <p className="text-sm font-medium text-gray-800">
-                        {flag.type}
+                        {flag.participant 
+                          ? `${flag.type} (${flag.participant.charAt(0).toUpperCase() + flag.participant.slice(1)} Message)` 
+                          : flag.type}
                       </p>
                       <p className="text-sm text-gray-600">
                         {flag.description}

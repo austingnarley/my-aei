@@ -37,6 +37,7 @@ class MessageInput(BaseModel):
 class Flag(BaseModel):
     type: str
     description: str
+    participant: Optional[str] = None
 
 class AnalysisResult(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -154,78 +155,130 @@ async def analyze_message(message_input: MessageInput):
         sentiment = "positive"
         
         # Simple keyword detection for demo
-        lower_text = message_input.text.lower()
+        text_lower = message_input.text.lower()
+        their_message_raw = ""
+        your_message_raw = ""
+
+        if "their message:" in text_lower:
+            parts = message_input.text.split("Their message:", 1)
+            if len(parts) > 1:
+                content_after_their_message = parts[1]
+                if "your response:" in content_after_their_message.lower():
+                    sub_parts = content_after_their_message.split("Your response:", 1)
+                    their_message_raw = sub_parts[0].strip()
+                    if len(sub_parts) > 1:
+                        your_message_raw = sub_parts[1].strip()
+                else:
+                    their_message_raw = content_after_their_message.strip()
+        elif "your response:" in text_lower:
+            parts = message_input.text.split("Your response:", 1)
+            if len(parts) > 1:
+                your_message_raw = parts[1].strip()
         
-        # Check for gaslighting patterns
-        if (("never said" in lower_text or "didn't say" in lower_text or "you're imagining" in lower_text) and 
-            ("their message:" in lower_text or "what did they say" in lower_text)):
-            flags.append(Flag(
-                type="Gaslighting",
-                description="Denying someone's reality or memory of events."
-            ))
+        their_message_lower = their_message_raw.lower()
+        your_message_lower = your_message_raw.lower()
+
+        detected_flags = [] # Store as dicts for now
+        sentiment = "positive"
+
+        # Check for gaslighting patterns (typically from their message)
+        if their_message_lower and ("never said" in their_message_lower or "didn't say" in their_message_lower or "you're imagining" in their_message_lower):
+            detected_flags.append({
+                "type": "Gaslighting",
+                "description": "Denying someone's reality or memory of events.",
+                "participant": "their"
+            })
+            sentiment = "negative"
+
+        # Check for invalidation (can be from either)
+        if their_message_lower and "never" in their_message_lower and "you" in their_message_lower:
+            detected_flags.append({
+                "type": "Invalidation",
+                "description": "Using 'you never' statements can invalidate the other person's experiences.",
+                "participant": "their"
+            })
+            sentiment = "negative"
+        if your_message_lower and "never" in your_message_lower and "you" in your_message_lower:
+            detected_flags.append({
+                "type": "Invalidation",
+                "description": "Using 'you never' statements can invalidate the other person's experiences.",
+                "participant": "your"
+            })
+            sentiment = "negative"
+
+        # Check for controlling behavior (can be from either)
+        if their_message_lower and "should" in their_message_lower and "you" in their_message_lower:
+            detected_flags.append({
+                "type": "Controlling behavior",
+                "description": "Using 'you should' suggests imposing your expectations on others.",
+                "participant": "their"
+            })
+            sentiment = "negative"
+        if your_message_lower and "should" in your_message_lower and "you" in your_message_lower:
+            detected_flags.append({
+                "type": "Controlling behavior",
+                "description": "Using 'you should' suggests imposing your expectations on others.",
+                "participant": "your"
+            })
+            sentiment = "negative"
+
+        # Check for blame-shifting (typically from their message)
+        if their_message_lower and "always" in their_message_lower and "you" in their_message_lower:
+            detected_flags.append({
+                "type": "Blame-shifting",
+                "description": "Using 'you always' can shift blame and overgeneralize.",
+                "participant": "their"
+            })
             sentiment = "negative"
         
-        # Check for invalidation
-        if "never" in lower_text and "you" in lower_text:
-            flags.append(Flag(
-                type="Invalidation",
-                description="Using 'you never' statements can invalidate the other person's experiences."
-            ))
+        # Check for non-apology (can be from either)
+        if "sorry but" in their_message_lower:
+            detected_flags.append({
+                "type": "Non-apology",
+                "description": "Using 'sorry but' often negates the apology that precedes it.",
+                "participant": "their"
+            })
             sentiment = "negative"
-        
-        # Check for controlling behavior
-        if "should" in lower_text and "you" in lower_text:
-            flags.append(Flag(
-                type="Controlling behavior",
-                description="Using 'you should' suggests imposing your expectations on others."
-            ))
-            sentiment = "negative"
-        
-        # Check for blame-shifting
-        if "always" in lower_text and "you" in lower_text:
-            flags.append(Flag(
-                type="Blame-shifting",
-                description="Using 'you always' can shift blame and overgeneralize."
-            ))
-            sentiment = "negative"
-        
-        # Check for non-apology
-        if "sorry but" in lower_text:
-            flags.append(Flag(
-                type="Non-apology",
-                description="Using 'sorry but' often negates the apology that precedes it."
-            ))
+        if "sorry but" in your_message_lower:
+            detected_flags.append({
+                "type": "Non-apology",
+                "description": "Using 'sorry but' often negates the apology that precedes it.",
+                "participant": "your"
+            })
             sentiment = "negative"
             
-        # Check for defensiveness
-        if ("i already told you" in lower_text or "not my fault" in lower_text or 
-            "stop blaming me" in lower_text) and "your response:" in lower_text:
-            flags.append(Flag(
-                type="Defensiveness",
-                description="Responding to concerns with self-protection rather than listening."
-            ))
+        # Check for defensiveness (typically in your response)
+        if your_message_lower and ("i already told you" in your_message_lower or "not my fault" in your_message_lower or "stop blaming me" in your_message_lower):
+            detected_flags.append({
+                "type": "Defensiveness",
+                "description": "Responding to concerns with self-protection rather than listening.",
+                "participant": "your"
+            })
             sentiment = "negative"
         
-        # Detect emotional manipulation
-        if ("you don't care about me" in lower_text or "if you loved me" in lower_text or 
-            "after all i've done for you" in lower_text):
-            flags.append(Flag(
-                type="Emotional manipulation",
-                description="Using emotional appeals to control or influence behavior."
-            ))
+        # Detect emotional manipulation (typically from their message)
+        if their_message_lower and ("you don't care about me" in their_message_lower or "if you loved me" in their_message_lower or "after all i've done for you" in their_message_lower):
+            detected_flags.append({
+                "type": "Emotional manipulation",
+                "description": "Using emotional appeals to control or influence behavior.",
+                "participant": "their"
+            })
             sentiment = "negative"
-        
+
+        # Convert detected_flags to Flag model instances for the AnalysisResult
+        final_flags = [Flag(type=f["type"], description=f["description"], participant=f.get("participant")) for f in detected_flags]
+
         # Create the analysis result
         result = AnalysisResult(
             text=message_input.text,
             context=message_input.context,
             relationship_id=message_input.relationship_id,
             relationship_name=relationship_name,
-            flags=flags,
+            flags=final_flags, # Use the converted list of Flag models
             interpretation=(
                 "This conversation shows patterns that could create emotional distance between the participants. "
                 "The language used may contain red flags that could damage trust and emotional safety in the relationship."
-                if flags else
+                if detected_flags else
                 "This conversation demonstrates healthy communication patterns with clear expression, respect, and emotional safety."
             ),
             suggestions=[
@@ -233,7 +286,7 @@ async def analyze_message(message_input: MessageInput):
                 "Try to validate the other person's perspective before sharing your own view",
                 "Focus on specific behaviors rather than using generalizations like 'always' or 'never'",
                 "If you notice tension rising, take a short pause before responding"
-            ] if flags else [
+            ] if detected_flags else [
                 "Continue using this balanced communication style",
                 "Notice how mutual respect strengthens your connection",
                 "Consider sharing appreciation for the healthy dialogue"
@@ -249,7 +302,7 @@ async def analyze_message(message_input: MessageInput):
             flag_entry = {
                 "date": datetime.now().isoformat(),
                 "text": message_input.text[:100] + ("..." if len(message_input.text) > 100 else ""),
-                "flags": [flag.type for flag in flags],
+                "flags": [f["type"] for f in detected_flags], # Use types from detected_flags
                 "sentiment": sentiment
             }
             
