@@ -273,6 +273,67 @@ test_plan:
   test_all: true
   test_priority: "high_first"
 
+frontend:
+  - task: "Enhanced Groq Response Display"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/pages/MessageAnalyzer.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Need to test that the new emotional intelligence fields (emotional_tone, communication_style, relationship_insights, emotional_maturity_level, potential_triggers, confidence_score, emotional_flags) are properly displayed in the UI."
+
+  - task: "Message Analysis Flow"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/pages/MessageAnalyzer.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Need to test the complete user flow: user inputs message -> backend processes with llama-3.1-8b-instant model -> frontend displays enhanced emotional intelligence insights."
+
+  - task: "Error Handling UI"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/pages/MessageAnalyzer.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Need to test how frontend handles failed Groq API calls, fallback responses, loading states, and empty/invalid input handling."
+
+  - task: "Integration Points"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/contexts/AppContext.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Need to verify frontend correctly calls /api/analyze endpoint, enhanced response data is properly parsed and displayed, UI components handle new response structure without breaking."
+
+  - task: "Enhanced Analysis Quality"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/pages/MessageAnalyzer.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Need to test with various emotional message types (stressed, happy, angry, confused, etc.) to verify enhanced prompt improvements are reflected in better analysis quality."
+
 agent_communication:
   - agent: "testing"
     message: "All backend API endpoints have been tested and are working correctly. The health endpoint returns the expected status. The analyze endpoint correctly identifies sentiment and flags in messages. The dashboard endpoint provides all required metrics. The relationships endpoint allows creating and retrieving relationships. The growth plan endpoint returns a valid growth plan with activities and goals."
@@ -280,3 +341,5 @@ agent_communication:
     message: "The improved Message Analyzer API now successfully supports two-sided conversations. The API correctly identifies flags from both 'Their message' and 'Your response' parts of the conversation, provides appropriate interpretation of the conversation dynamics, and offers relevant suggestions for healthier communication."
   - agent: "testing"
     message: "All relationship endpoints have been tested and are working correctly. The API successfully supports creating, retrieving, updating, and deleting relationships. It also allows analyzing messages in the context of a relationship and retrieving the history and analytics for a relationship. All endpoints return the expected data and handle errors appropriately."
+  - agent: "testing"
+    message: "Added frontend testing tasks for enhanced Groq API integration. Will now test the frontend integration with the new emotional intelligence fields and llama-3.1-8b-instant model implementation."
