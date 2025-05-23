@@ -55,6 +55,14 @@ class AnalysisResult(BaseModel):
     suggestions: List[str] = []
     sentiment: str
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
+    # Enhanced emotional intelligence fields from Groq API
+    emotional_tone: Optional[str] = None
+    communication_style: Optional[str] = None
+    potential_triggers: List[str] = []
+    confidence_score: Optional[float] = None
+    emotional_flags: List[str] = []
+    relationship_insights: Optional[str] = None
+    emotional_maturity_level: Optional[str] = None
 
 class Relationship(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
