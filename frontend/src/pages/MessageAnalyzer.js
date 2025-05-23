@@ -105,9 +105,103 @@ const MessageAnalyzer = () => {
           )}
         </div>
         
-        {/* Analysis Section */}
+        {/* Enhanced Emotional Intelligence Analysis */}
+        <div className="mb-6 space-y-6">
+          {/* Sentiment and Confidence */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h4 className="text-md font-medium text-gray-800 mb-3">Sentiment</h4>
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm font-medium px-3 py-1 rounded-full ${
+                    analysis.sentiment === 'positive' ? 'bg-green-100 text-green-800' :
+                    analysis.sentiment === 'negative' ? 'bg-red-100 text-red-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {analysis.sentiment ? analysis.sentiment.charAt(0).toUpperCase() + analysis.sentiment.slice(1) : 'Neutral'}
+                  </span>
+                  {analysis.confidence_score && (
+                    <span className="text-xs text-gray-600">
+                      Confidence: {Math.round(analysis.confidence_score * 100)}%
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            {/* Emotional Maturity Level */}
+            {analysis.emotional_maturity_level && (
+              <div>
+                <h4 className="text-md font-medium text-gray-800 mb-3">Emotional Maturity</h4>
+                <div className="p-4 bg-cyan-50 rounded-lg">
+                  <p className="text-sm text-gray-800">{analysis.emotional_maturity_level}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Emotional Tone */}
+          {analysis.emotional_tone && (
+            <div>
+              <h4 className="text-md font-medium text-gray-800 mb-3">Emotional Tone</h4>
+              <div className="p-4 bg-amber-50 rounded-lg">
+                <p className="text-gray-800">{analysis.emotional_tone}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Communication Style */}
+          {analysis.communication_style && (
+            <div>
+              <h4 className="text-md font-medium text-gray-800 mb-3">Communication Style</h4>
+              <div className="p-4 bg-emerald-50 rounded-lg">
+                <p className="text-gray-800">{analysis.communication_style}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Relationship Insights */}
+          {analysis.relationship_insights && (
+            <div>
+              <h4 className="text-md font-medium text-gray-800 mb-3">Relationship Insights</h4>
+              <div className="p-4 bg-rose-50 rounded-lg">
+                <p className="text-gray-800">{analysis.relationship_insights}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Potential Triggers */}
+          {analysis.potential_triggers && analysis.potential_triggers.length > 0 && (
+            <div>
+              <h4 className="text-md font-medium text-gray-800 mb-3">Potential Triggers</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {analysis.potential_triggers.map((trigger, idx) => (
+                  <div key={idx} className="bg-orange-50 border border-orange-100 p-3 rounded-lg">
+                    <p className="text-sm text-gray-800">{trigger}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Enhanced Emotional Flags */}
+          {analysis.emotional_flags && analysis.emotional_flags.length > 0 && (
+            <div>
+              <h4 className="text-md font-medium text-gray-800 mb-3">Emotional Patterns</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {analysis.emotional_flags.map((flag, idx) => (
+                  <div key={idx} className="bg-purple-50 border border-purple-100 p-2 rounded-lg">
+                    <span className="text-xs font-medium text-purple-800">{flag}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* General Interpretation */}
         <div className="mb-6">
-          <h4 className="text-md font-medium text-gray-800 mb-3">Interpretation</h4>
+          <h4 className="text-md font-medium text-gray-800 mb-3">General Interpretation</h4>
           <div className="p-4 bg-indigo-50 rounded-lg">
             <p className="text-gray-800">{analysis.interpretation}</p>
           </div>
@@ -115,10 +209,10 @@ const MessageAnalyzer = () => {
         
         {/* Suggestions Section */}
         <div>
-          <h4 className="text-md font-medium text-gray-800 mb-3">Suggestions</h4>
+          <h4 className="text-md font-medium text-gray-800 mb-3">Personalized Suggestions</h4>
           <div className="space-y-3">
             {analysis.suggestions && analysis.suggestions.map((suggestion, idx) => (
-              <div key={idx} className="bg-purple-50 border border-purple-100 p-3 rounded-lg">
+              <div key={idx} className="bg-green-50 border border-green-100 p-3 rounded-lg">
                 <p className="text-sm text-gray-800">{suggestion}</p>
               </div>
             ))}
