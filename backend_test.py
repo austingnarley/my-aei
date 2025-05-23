@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 
 class MyAITester:
-    def __init__(self, base_url="https://1d6f390f-7a6f-4c4b-978c-434bddb957a6.preview.emergentagent.com"):
+    def __init__(self, base_url="https://df3ad6e3-35b9-4062-af30-d34176223b3e.preview.emergentagent.com"):
         self.base_url = base_url
         self.tests_run = 0
         self.tests_passed = 0
