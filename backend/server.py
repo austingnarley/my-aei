@@ -137,7 +137,15 @@ async def analyze_message(message_input: MessageInput):
             flags=parsed_flags_for_result,
             interpretation=analysis_data.get("interpretation", "No interpretation provided."),
             suggestions=analysis_data.get("suggestions", []),
-            sentiment=analysis_data.get("sentiment", "neutral")
+            sentiment=analysis_data.get("sentiment", "neutral"),
+            # Enhanced emotional intelligence fields
+            emotional_tone=analysis_data.get("emotional_tone"),
+            communication_style=analysis_data.get("communication_style"),
+            potential_triggers=analysis_data.get("potential_triggers", []),
+            confidence_score=analysis_data.get("confidence_score"),
+            emotional_flags=analysis_data.get("emotional_flags", []),
+            relationship_insights=analysis_data.get("relationship_insights"),
+            emotional_maturity_level=analysis_data.get("emotional_maturity_level")
         )
         
         # Save the result to the database
