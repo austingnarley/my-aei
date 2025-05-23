@@ -34,7 +34,8 @@ def analyze_text_with_groq(text: str, context: Optional[str] = None, model: str 
     client = groq.Groq(api_key=api_key)
     
     # Enhanced prompt for emotional intelligence analysis
-    prompt = f"""You are an expert emotional intelligence analyst. Analyze the following message comprehensively and provide insights that help understand the emotional state, communication patterns, and relationship dynamics.
+    context_info = f"\n\nAdditional context: {context}" if context else ""
+    prompt = f"""You are an expert emotional intelligence analyst. Analyze the following message comprehensively and provide insights that help understand the emotional state, communication patterns, and relationship dynamics.{context_info}
 
 Provide a JSON response with this exact structure:
 {{
