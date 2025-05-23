@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 # Placeholder for GROQ_API_KEY, will be fetched from environment variables
 # GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
-def analyze_text_with_groq(text: str, model: str = "llama-3.1-8b-instant", max_retries: int = 3) -> dict:
+def analyze_text_with_groq(text: str, context: Optional[str] = None, model: str = "llama-3.1-8b-instant", max_retries: int = 3) -> dict:
     """
     Analyze text using Groq API for emotional intelligence insights
     
