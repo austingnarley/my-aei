@@ -184,8 +184,7 @@ if __name__ == '__main__':
             print("Please set the GROQ_API_KEY environment variable to test.")
         else:
             sample_text = "This is a test sentence."
-            sample_context = "This is a test context."
-            analysis_result = analyze_text_with_groq(sample_text, sample_context)
+            analysis_result = analyze_text_with_groq(sample_text)
             print("Analysis Result:")
             print(json.dumps(analysis_result, indent=2))
     except ValueError as ve:
