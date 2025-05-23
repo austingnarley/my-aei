@@ -257,20 +257,13 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Health endpoint"
-    - "Analyze endpoint"
-    - "Dashboard endpoint"
-    - "Relationships endpoint"
-    - "Growth plan endpoint"
-    - "Two-sided conversation analysis"
-    - "Create relationship endpoint"
-    - "Get relationship by ID endpoint"
-    - "Update relationship endpoint"
-    - "Delete relationship endpoint"
-    - "Analyze relationship message endpoint"
-    - "Get relationship history endpoint"
+    - "Enhanced Groq Response Display"
+    - "Message Analysis Flow"
+    - "Integration Points"
+    - "Enhanced Analysis Quality"
+    - "Error Handling UI"
   stuck_tasks: []
-  test_all: true
+  test_all: false
   test_priority: "high_first"
 
 frontend:
