@@ -213,7 +213,7 @@ Important: Respond ONLY with valid JSON. No additional text, explanations, or fo
 
 def create_fallback_response(text: str, error_info: str = "") -> dict:
     """Create a fallback response when API analysis fails"""
-    return {
+    fallback_groq_response = {
         "sentiment": "neutral",
         "emotional_tone": "Unable to analyze emotional tone due to technical issues",
         "communication_style": "Analysis temporarily unavailable",
@@ -225,6 +225,9 @@ def create_fallback_response(text: str, error_info: str = "") -> dict:
         "emotional_maturity_level": "Cannot be determined at this time",
         "fallback_reason": error_info[:200] if error_info else "Technical difficulties"
     }
+    
+    # Transform to server format
+    return transform_groq_response_to_server_format(fallback_groq_response, text)
 
 if __name__ == '__main__':
     # Example usage (requires GROQ_API_KEY to be set in the environment)
