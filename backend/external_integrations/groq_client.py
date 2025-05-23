@@ -1,9 +1,13 @@
 import os
 import json
+import time
+import logging
 from typing import Optional
 
 import groq
 from fastapi import HTTPException
+
+logger = logging.getLogger(__name__)
 
 # Placeholder for GROQ_API_KEY, will be fetched from environment variables
 # GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
