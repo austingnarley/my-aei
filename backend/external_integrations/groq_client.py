@@ -18,6 +18,7 @@ def analyze_text_with_groq(text: str, context: Optional[str] = None, model: str 
     
     Args:
         text: The text to analyze
+        context: Optional context to provide additional information for analysis
         model: Groq model to use (default: llama-3.1-8b-instant)
         max_retries: Maximum number of retry attempts for transient failures
     """
