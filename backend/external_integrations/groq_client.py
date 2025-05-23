@@ -12,86 +12,166 @@ logger = logging.getLogger(__name__)
 # Placeholder for GROQ_API_KEY, will be fetched from environment variables
 # GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
-def analyze_text_with_groq(text: str, context: Optional[str] = None) -> dict:
+def analyze_text_with_groq(text: str, model: str = "llama-3.1-8b-instant", max_retries: int = 3) -> dict:
     """
-    Analyzes text using the Groq API.
-
-    Args:
-        text: The text to analyze.
-        context: Optional context for the analysis.
-
-    Returns:
-        A dictionary containing the Groq API response.
-
-    Raises:
-        ValueError: If the GROQ_API_KEY environment variable is not set.
-        HTTPException: If there is an error communicating with the Groq API.
-    """
-    groq_api_key = os.environ.get("GROQ_API_KEY")
-    if not groq_api_key:
-        # Log message added as per requirement
-        print("ERROR: GROQ_API_KEY environment variable is not set. This is required for Groq API communication.")
-        raise ValueError("GROQ_API_KEY environment variable not set.")
-
-    client = groq.Groq(api_key=groq_api_key)
-
-    prompt = f"Analyze the following text: '{text}'"
-    if context:
-        prompt += f"\n\nContext: '{context}'"
+    Analyze text using Groq API for emotional intelligence insights
     
-    prompt += "\n\nPlease provide a detailed analysis."
+    Args:
+        text: The text to analyze
+        model: Groq model to use (default: llama-3.1-8b-instant)
+        max_retries: Maximum number of retry attempts for transient failures
+    """
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        logger.error("GROQ_API_KEY not found in environment variables")
+        raise HTTPException(status_code=500, detail="GROQ API key not configured")
+    
+    if not text or not text.strip():
+        logger.warning("Empty or whitespace-only text provided")
+        raise HTTPException(status_code=400, detail="Text cannot be empty")
+    
+    client = groq.Groq(api_key=api_key)
+    
+    # Enhanced prompt for emotional intelligence analysis
+    prompt = f"""You are an expert emotional intelligence analyst. Analyze the following message comprehensively and provide insights that help understand the emotional state, communication patterns, and relationship dynamics.
 
-    try:
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ],
-            model="mixtral-8x7b-32768", # TODO: Make model configurable if needed
-        )
-        
-        # Assuming the response is JSON and needs parsing.
-        # The actual structure of chat_completion.choices[0].message.content might vary.
-        # Adjust parsing based on the actual Groq API response format.
-        response_content = chat_completion.choices[0].message.content
-        if isinstance(response_content, str):
+Provide a JSON response with this exact structure:
+{{
+    "sentiment": "positive/negative/neutral",
+    "emotional_tone": "Detailed description of the emotional undertones and feelings expressed",
+    "communication_style": "Analysis of how the person communicates (direct, passive, assertive, etc.)",
+    "potential_triggers": ["specific phrases or topics that might cause emotional reactions"],
+    "suggestions": ["actionable advice for better emotional communication"],
+    "confidence_score": 0.85,
+    "emotional_flags": ["any concerning patterns like anger, desperation, manipulation, etc."],
+    "relationship_insights": "How this communication might affect relationships",
+    "emotional_maturity_level": "Assessment of emotional awareness and regulation shown"
+}}
+
+Message to analyze: "{text}"
+
+Important: Respond ONLY with valid JSON. No additional text, explanations, or formatting."""
+
+    for attempt in range(max_retries):
+        try:
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an expert emotional intelligence analyst. Always respond with valid JSON only."
+                    },
+                    {
+                        "role": "user", 
+                        "content": prompt,
+                    }
+                ],
+                model=model,
+                temperature=0.2,  # Slightly higher for more nuanced responses
+                max_tokens=1500,  # Increased for more detailed analysis
+                top_p=0.9
+            )
+            
+            response_content = chat_completion.choices[0].message.content
+            logger.info(f"Groq API raw response (attempt {attempt + 1}): {response_content[:200]}...")
+            
+            # Try to parse the JSON response
             try:
-                parsed_response = json.loads(response_content)
-            except json.JSONDecodeError:
-                # If it's not a JSON string, wrap it in a dict or handle as needed
-                parsed_response = {"analysis": response_content}
-        else:
-            # If it's already a dict-like object (e.g. Pydantic model), convert to dict
-            # This part is speculative and depends on Groq library's return type
-            if hasattr(response_content, 'model_dump_json') and callable(getattr(response_content, 'model_dump_json')):
-                 parsed_response = json.loads(response_content.model_dump_json())
-            elif hasattr(response_content, 'to_dict') and callable(getattr(response_content, 'to_dict')):
-                parsed_response = response_content.to_dict()
-            elif isinstance(response_content, dict):
-                parsed_response = response_content
+                # Clean the response content
+                cleaned_response = response_content.strip()
+                
+                # Remove any markdown code blocks if present
+                if cleaned_response.startswith("```json"):
+                    cleaned_response = cleaned_response.replace("```json", "").replace("```", "").strip()
+                elif cleaned_response.startswith("```"):
+                    cleaned_response = cleaned_response.replace("```", "").strip()
+                
+                parsed_response = json.loads(cleaned_response)
+                
+                # Validate required fields
+                required_fields = ["sentiment", "emotional_tone", "communication_style", "confidence_score"]
+                if all(field in parsed_response for field in required_fields):
+                    logger.info("Successfully parsed Groq API response")
+                    return parsed_response
+                else:
+                    raise ValueError("Missing required fields in response")
+                    
+            except (json.JSONDecodeError, ValueError) as parse_error:
+                logger.warning(f"Failed to parse JSON response (attempt {attempt + 1}): {parse_error}")
+                
+                # Extract JSON from response if it's wrapped in text
+                import re
+                json_match = re.search(r'\{.*\}', response_content, re.DOTALL)
+                if json_match:
+                    try:
+                        parsed_response = json.loads(json_match.group())
+                        required_fields = ["sentiment", "emotional_tone", "communication_style"]
+                        if all(field in parsed_response for field in required_fields):
+                            return parsed_response
+                    except json.JSONDecodeError:
+                        pass
+                
+                # If this is the last attempt, return fallback
+                if attempt == max_retries - 1:
+                    logger.error(f"Failed to parse JSON after {max_retries} attempts")
+                    return create_fallback_response(text, response_content)
+                else:
+                    continue  # Try again
+    
+        except groq.RateLimitError as e:
+            logger.error(f"Groq API rate limit error: {e}")
+            raise HTTPException(status_code=429, detail="API rate limit exceeded. Please try again later.")
+        
+        except groq.APIStatusError as e:
+            logger.error(f"Groq API status error: {e}")
+            if e.status_code == 400:
+                raise HTTPException(status_code=400, detail=f"Invalid request to Groq API: {str(e)}")
+            elif e.status_code in [500, 502, 503, 504]:
+                # Server errors - retry if not last attempt
+                if attempt < max_retries - 1:
+                    logger.warning(f"Server error (attempt {attempt + 1}), retrying: {e}")
+                    time.sleep(2 ** attempt)  # Exponential backoff
+                    continue
+                else:
+                    raise HTTPException(status_code=503, detail="Groq API is temporarily unavailable")
             else:
-                # Fallback if direct conversion or parsing isn't straightforward
-                # This might indicate an unexpected response format
-                print(f"Unexpected response format: {type(response_content)}")
-                parsed_response = {"error": "Unexpected response format from Groq API", "content": str(response_content)}
+                raise HTTPException(status_code=e.status_code or 500, detail=f"Groq API error: {str(e)}")
+        
+        except groq.APIConnectionError as e:
+            logger.error(f"Groq API connection error: {e}")
+            if attempt < max_retries - 1:
+                logger.warning(f"Connection error (attempt {attempt + 1}), retrying: {e}")
+                time.sleep(2 ** attempt)  # Exponential backoff
+                continue
+            else:
+                raise HTTPException(status_code=503, detail="Unable to connect to Groq API. Please try again later.")
+        
+        except Exception as e:
+            logger.error(f"Unexpected error calling Groq API: {e}")
+            if attempt < max_retries - 1:
+                logger.warning(f"Unexpected error (attempt {attempt + 1}), retrying: {e}")
+                time.sleep(1)
+                continue
+            else:
+                raise HTTPException(status_code=500, detail="Internal server error during text analysis")
+    
+    # This should never be reached, but just in case
+    return create_fallback_response(text, "Max retries exceeded")
 
 
-        return parsed_response
-
-    except groq.APIConnectionError as e:
-        print(f"Groq API connection error: {e}")
-        raise HTTPException(status_code=500, detail="Error connecting to Groq API.")
-    except groq.RateLimitError as e:
-        print(f"Groq API rate limit exceeded: {e}")
-        raise HTTPException(status_code=429, detail="Groq API rate limit exceeded.")
-    except groq.APIStatusError as e:
-        print(f"Groq API status error: {e.status_code} {e.response}")
-        raise HTTPException(status_code=e.status_code or 500, detail=f"Groq API error: {e.message or 'Unknown API error'}")
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-        raise HTTPException(status_code=500, detail="An unexpected error occurred while processing the request.")
+def create_fallback_response(text: str, error_info: str = "") -> dict:
+    """Create a fallback response when API analysis fails"""
+    return {
+        "sentiment": "neutral",
+        "emotional_tone": "Unable to analyze emotional tone due to technical issues",
+        "communication_style": "Analysis temporarily unavailable",
+        "potential_triggers": [],
+        "suggestions": ["Please try again later when the analysis service is available"],
+        "confidence_score": 0.0,
+        "emotional_flags": ["analysis_failed"],
+        "relationship_insights": "Analysis unavailable due to technical issues",
+        "emotional_maturity_level": "Cannot be determined at this time",
+        "fallback_reason": error_info[:200] if error_info else "Technical difficulties"
+    }
 
 if __name__ == '__main__':
     # Example usage (requires GROQ_API_KEY to be set in the environment)
