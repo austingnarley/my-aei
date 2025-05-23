@@ -12,6 +12,57 @@ logger = logging.getLogger(__name__)
 # Placeholder for GROQ_API_KEY, will be fetched from environment variables
 # GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
+def transform_groq_response_to_server_format(groq_response: dict, original_text: str) -> dict:
+    """
+    Transform the enhanced Groq response to match the server's expected format
+    while preserving the enhanced fields as additional data.
+    """
+    # Create flags from emotional_flags
+    flags = []
+    emotional_flags = groq_response.get("emotional_flags", [])
+    for flag_text in emotional_flags:
+        flags.append({
+            "type": "emotional_concern",
+            "description": flag_text,
+            "participant": None
+        })
+    
+    # Create interpretation from multiple enhanced fields
+    emotional_tone = groq_response.get("emotional_tone", "")
+    communication_style = groq_response.get("communication_style", "")
+    relationship_insights = groq_response.get("relationship_insights", "")
+    emotional_maturity = groq_response.get("emotional_maturity_level", "")
+    
+    interpretation_parts = []
+    if emotional_tone:
+        interpretation_parts.append(f"Emotional tone: {emotional_tone}")
+    if communication_style:
+        interpretation_parts.append(f"Communication style: {communication_style}")
+    if relationship_insights:
+        interpretation_parts.append(f"Relationship insights: {relationship_insights}")
+    if emotional_maturity:
+        interpretation_parts.append(f"Emotional maturity: {emotional_maturity}")
+    
+    interpretation = ". ".join(interpretation_parts) if interpretation_parts else "Analysis completed."
+    
+    # Build the server-compatible response
+    server_response = {
+        "sentiment": groq_response.get("sentiment", "neutral"),
+        "flags": flags,
+        "interpretation": interpretation,
+        "suggestions": groq_response.get("suggestions", []),
+        # Include enhanced fields for backward compatibility and future use
+        "emotional_tone": groq_response.get("emotional_tone"),
+        "communication_style": groq_response.get("communication_style"),
+        "potential_triggers": groq_response.get("potential_triggers", []),
+        "confidence_score": groq_response.get("confidence_score", 0.0),
+        "emotional_flags": groq_response.get("emotional_flags", []),
+        "relationship_insights": groq_response.get("relationship_insights"),
+        "emotional_maturity_level": groq_response.get("emotional_maturity_level")
+    }
+    
+    return server_response
+
 def analyze_text_with_groq(text: str, context: Optional[str] = None, model: str = "llama-3.1-8b-instant", max_retries: int = 3) -> dict:
     """
     Analyze text using Groq API for emotional intelligence insights
