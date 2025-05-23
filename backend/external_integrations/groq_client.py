@@ -159,7 +159,7 @@ Important: Respond ONLY with valid JSON. No additional text, explanations, or fo
                         parsed_response = json.loads(json_match.group())
                         required_fields = ["sentiment", "emotional_tone", "communication_style"]
                         if all(field in parsed_response for field in required_fields):
-                            return parsed_response
+                            return transform_groq_response_to_server_format(parsed_response, text)
                     except json.JSONDecodeError:
                         pass
                 
