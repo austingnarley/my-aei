@@ -105,7 +105,7 @@ async def analyze_message(message_input: MessageInput):
     try:
         # Call the new Groq client function
         # analyze_text_with_groq is expected to raise HTTPException on API errors or ValueError if API key is missing
-        analysis_data = await analyze_text_with_groq(text=message_input.text, context=message_input.context)
+        analysis_data = analyze_text_with_groq(text=message_input.text, context=message_input.context)
 
         # The groq_client returns a dict. We need to map its fields to AnalysisResult.
         # `analyze_text_with_groq` returns:
