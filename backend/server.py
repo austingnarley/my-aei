@@ -7,9 +7,10 @@ from typing import List, Dict, Any, Optional
 from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-import groq
+# import groq # No longer directly used here
 import motor.motor_asyncio
 from bson import json_util
+from backend.external_integrations.groq_client import analyze_text_with_groq
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -91,219 +92,59 @@ async def health():
 
 @app.post("/api/analyze", response_model=AnalysisResult)
 async def analyze_message(message_input: MessageInput):
-    # Initialize Groq client
-    try:
-        groq_api_key = os.environ.get("GROQ_API_KEY", "placeholder-key")
-        client = groq.Groq(api_key=groq_api_key)
-    except Exception as e:
-        # For demo purposes, we'll continue without a real key
-        pass
-    
-    # Extract any relationship info if provided
     relationship_name = None
     if message_input.relationship_id:
         relationship = await db.relationships.find_one({"id": message_input.relationship_id})
         if relationship:
             relationship_name = relationship.get("name")
-    
-    # Prepare the prompt for the LLM
-    prompt = f"""
-    You are an emotional intelligence and relationship clarity assistant. Analyze the following conversation for emotional red flags, 
-    communication patterns, and relationship dynamics. If any red flags are present, identify them specifically.
 
-    CONVERSATION:
-    {message_input.text}
-    
-    {f"CONTEXT: {message_input.context}" if message_input.context else ""}
-    
-    Provide a comprehensive analysis in the following format:
-    
-    1. Identify any emotional red flags from this list (or others you detect):
-       - Gaslighting (denial of someone's reality or experience)
-       - Guilt-tripping (making someone feel responsible for your emotions)
-       - Blame-shifting (redirecting responsibility to avoid accountability)
-       - Stonewalling (refusing to communicate or engage)
-       - Invalidation (dismissing someone's feelings as unimportant)
-       - Passive aggression (indirect expression of hostility)
-       - Emotional manipulation (using emotions to control)
-       - Controlling behavior (attempting to dictate someone's actions)
-       - Non-apology (apologizing without taking responsibility)
-       - Defensiveness (protecting oneself at the expense of listening)
-    
-    2. Provide an interpretation of the emotional dynamics between both parties in the conversation.
-    
-    3. Suggest constructive responses or boundaries for healthier communication.
-    
-    4. Determine the overall sentiment (positive, neutral, or negative).
-    
-    Return your analysis as a valid JSON object with these fields:
-    - flags: array of objects with "type" and "description" for each flag detected (empty array if none)
-    - interpretation: string with your analysis
-    - suggestions: array of strings with suggested responses or boundaries
-    - sentiment: string ("positive", "neutral", or "negative")
-    """
-
-    # In a real app, this would call the Groq API with the prompt
-    # For this demo, we'll simulate a response
     try:
-        # Simulate LLM analysis
-        time.sleep(1)  # Simulate API latency
-        
-        # For demo purposes, we'll generate a simple analysis
-        # In a real app, this would be the result from the LLM API
-        flags = []
-        sentiment = "positive"
-        
-        # Simple keyword detection for demo
-        text_lower = message_input.text.lower()
-        their_message_raw = ""
-        your_message_raw = ""
+        # Call the new Groq client function
+        # analyze_text_with_groq is expected to raise HTTPException on API errors or ValueError if API key is missing
+        analysis_data = await analyze_text_with_groq(text=message_input.text, context=message_input.context)
 
-        if "their message:" in text_lower:
-            parts = message_input.text.split("Their message:", 1)
-            if len(parts) > 1:
-                content_after_their_message = parts[1]
-                if "your response:" in content_after_their_message.lower():
-                    sub_parts = content_after_their_message.split("Your response:", 1)
-                    their_message_raw = sub_parts[0].strip()
-                    if len(sub_parts) > 1:
-                        your_message_raw = sub_parts[1].strip()
-                else:
-                    their_message_raw = content_after_their_message.strip()
-        elif "your response:" in text_lower:
-            parts = message_input.text.split("Your response:", 1)
-            if len(parts) > 1:
-                your_message_raw = parts[1].strip()
-        
-        their_message_lower = their_message_raw.lower()
-        your_message_lower = your_message_raw.lower()
+        # The groq_client returns a dict. We need to map its fields to AnalysisResult.
+        # `analyze_text_with_groq` returns:
+        # {'flags': [{'type': '...', 'description': '...', 'participant': '...'}, ...], 
+        #  'interpretation': '...', 'suggestions': ['...'], 'sentiment': '...'}
+        # The 'participant' field in flags is optional.
 
-        detected_flags = [] # Store as dicts for now
-        sentiment = "positive"
+        raw_flags_from_groq = analysis_data.get("flags", [])
+        parsed_flags_for_result = []
+        for flag_data_dict in raw_flags_from_groq:
+            # Ensure all required fields for Flag model are present or provide defaults if appropriate
+            # The Flag model has 'type' and 'description' as required, 'participant' is optional.
+            # The groq_client should be returning dicts compatible with Flag(**flag_data_dict)
+            parsed_flags_for_result.append(Flag(**flag_data_dict))
 
-        # Check for gaslighting patterns (typically from their message)
-        if their_message_lower and ("never said" in their_message_lower or "didn't say" in their_message_lower or "you're imagining" in their_message_lower):
-            detected_flags.append({
-                "type": "Gaslighting",
-                "description": "Denying someone's reality or memory of events.",
-                "participant": "their"
-            })
-            sentiment = "negative"
-
-        # Check for invalidation (can be from either)
-        if their_message_lower and "never" in their_message_lower and "you" in their_message_lower:
-            detected_flags.append({
-                "type": "Invalidation",
-                "description": "Using 'you never' statements can invalidate the other person's experiences.",
-                "participant": "their"
-            })
-            sentiment = "negative"
-        if your_message_lower and "never" in your_message_lower and "you" in your_message_lower:
-            detected_flags.append({
-                "type": "Invalidation",
-                "description": "Using 'you never' statements can invalidate the other person's experiences.",
-                "participant": "your"
-            })
-            sentiment = "negative"
-
-        # Check for controlling behavior (can be from either)
-        if their_message_lower and "should" in their_message_lower and "you" in their_message_lower:
-            detected_flags.append({
-                "type": "Controlling behavior",
-                "description": "Using 'you should' suggests imposing your expectations on others.",
-                "participant": "their"
-            })
-            sentiment = "negative"
-        if your_message_lower and "should" in your_message_lower and "you" in your_message_lower:
-            detected_flags.append({
-                "type": "Controlling behavior",
-                "description": "Using 'you should' suggests imposing your expectations on others.",
-                "participant": "your"
-            })
-            sentiment = "negative"
-
-        # Check for blame-shifting (typically from their message)
-        if their_message_lower and "always" in their_message_lower and "you" in their_message_lower:
-            detected_flags.append({
-                "type": "Blame-shifting",
-                "description": "Using 'you always' can shift blame and overgeneralize.",
-                "participant": "their"
-            })
-            sentiment = "negative"
-        
-        # Check for non-apology (can be from either)
-        if "sorry but" in their_message_lower:
-            detected_flags.append({
-                "type": "Non-apology",
-                "description": "Using 'sorry but' often negates the apology that precedes it.",
-                "participant": "their"
-            })
-            sentiment = "negative"
-        if "sorry but" in your_message_lower:
-            detected_flags.append({
-                "type": "Non-apology",
-                "description": "Using 'sorry but' often negates the apology that precedes it.",
-                "participant": "your"
-            })
-            sentiment = "negative"
-            
-        # Check for defensiveness (typically in your response)
-        if your_message_lower and ("i already told you" in your_message_lower or "not my fault" in your_message_lower or "stop blaming me" in your_message_lower):
-            detected_flags.append({
-                "type": "Defensiveness",
-                "description": "Responding to concerns with self-protection rather than listening.",
-                "participant": "your"
-            })
-            sentiment = "negative"
-        
-        # Detect emotional manipulation (typically from their message)
-        if their_message_lower and ("you don't care about me" in their_message_lower or "if you loved me" in their_message_lower or "after all i've done for you" in their_message_lower):
-            detected_flags.append({
-                "type": "Emotional manipulation",
-                "description": "Using emotional appeals to control or influence behavior.",
-                "participant": "their"
-            })
-            sentiment = "negative"
-
-        # Convert detected_flags to Flag model instances for the AnalysisResult
-        final_flags = [Flag(type=f["type"], description=f["description"], participant=f.get("participant")) for f in detected_flags]
-
-        # Create the analysis result
         result = AnalysisResult(
             text=message_input.text,
             context=message_input.context,
             relationship_id=message_input.relationship_id,
             relationship_name=relationship_name,
-            flags=final_flags, # Use the converted list of Flag models
-            interpretation=(
-                "This conversation shows patterns that could create emotional distance between the participants. "
-                "The language used may contain red flags that could damage trust and emotional safety in the relationship."
-                if detected_flags else
-                "This conversation demonstrates healthy communication patterns with clear expression, respect, and emotional safety."
-            ),
-            suggestions=[
-                "Consider using 'I feel' statements instead of 'you' statements to express concerns",
-                "Try to validate the other person's perspective before sharing your own view",
-                "Focus on specific behaviors rather than using generalizations like 'always' or 'never'",
-                "If you notice tension rising, take a short pause before responding"
-            ] if detected_flags else [
-                "Continue using this balanced communication style",
-                "Notice how mutual respect strengthens your connection",
-                "Consider sharing appreciation for the healthy dialogue"
-            ],
-            sentiment=sentiment
+            flags=parsed_flags_for_result,
+            interpretation=analysis_data.get("interpretation", "No interpretation provided."),
+            suggestions=analysis_data.get("suggestions", []),
+            sentiment=analysis_data.get("sentiment", "neutral")
         )
         
         # Save the result to the database
-        await db.analysis_results.insert_one(result.dict())
+        # Using result.dict(by_alias=True) is good practice if your Pydantic models use aliases (e.g. for '_id')
+        # but AnalysisResult uses 'id' directly, so result.dict() is fine.
+        await db.analysis_results.insert_one(result.model_dump()) # Pydantic v2 uses model_dump()
         
         # If this is related to a relationship, update the relationship's flag history
         if message_input.relationship_id:
+            # The flag_history expects a list of dicts, and `raw_flags_from_groq` is already in that format.
+            # Specifically, it was `[f["type"] for f in detected_flags]`
+            # So we should extract just the types from raw_flags_from_groq
+            flag_types_for_history = [f_dict.get("type", "Unknown") for f_dict in raw_flags_from_groq]
+            
             flag_entry = {
                 "date": datetime.now().isoformat(),
                 "text": message_input.text[:100] + ("..." if len(message_input.text) > 100 else ""),
-                "flags": [f["type"] for f in detected_flags], # Use types from detected_flags
-                "sentiment": sentiment
+                "flags": flag_types_for_history, 
+                "sentiment": result.sentiment
             }
             
             await db.relationships.update_one(
@@ -311,7 +152,7 @@ async def analyze_message(message_input: MessageInput):
                 {
                     "$set": {
                         "last_contact": datetime.now().isoformat(),
-                        "sentiment": sentiment
+                        "sentiment": result.sentiment
                     },
                     "$push": {"flag_history": flag_entry}
                 }
@@ -319,8 +160,16 @@ async def analyze_message(message_input: MessageInput):
         
         return result
         
+    except ValueError as ve: # Specifically for GROQ_API_KEY not set, raised by groq_client
+        # Log the error for server visibility
+        print(f"Configuration error: {ve}")
+        raise HTTPException(status_code=500, detail=str(ve))
+    except HTTPException as http_exc: # Re-raise HTTPExceptions from analyze_text_with_groq
+        raise http_exc
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+        # Catch any other unexpected errors during the process
+        print(f"An unexpected error occurred in analyze_message: {e}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed due to an unexpected error: {str(e)}")
 
 @app.get("/api/history")
 async def get_history():
@@ -627,4 +476,8 @@ async def create_journal_entry(
 # Run the server if executed directly
 if __name__ == "__main__":
     import uvicorn
+    # Ensure GROQ_API_KEY is set for local development if you want to test the Groq integration
+    # For example, you can set it in your shell: export GROQ_API_KEY="your_actual_api_key"
+    # Or use a .env file with a library like python-dotenv if you modify the script to load it.
+    print("Starting server. Ensure GROQ_API_KEY is set in your environment for full functionality.")
     uvicorn.run("server:app", host="0.0.0.0", port=8001, reload=True)
