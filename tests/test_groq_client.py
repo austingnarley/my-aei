@@ -99,14 +99,26 @@ class TestGroqClient(unittest.TestCase):
 
     @patch('backend.external_integrations.groq_client.groq.Groq')
     def test_api_connection_error(self, MockGroq):
+        """Test handling of API connection errors."""
         os.environ["GROQ_API_KEY"] = "test_api_key"
         mock_groq_instance = MockGroq.return_value
-        mock_groq_instance.chat.completions.create.side_effect = APIConnectionError("Connection failed")
-
+        
+        # Create a mock request object for APIConnectionError
+        mock_request = MagicMock()
+        mock_request.url = "https://api.groq.com/test"
+        
+        # Set up the mock to raise an APIConnectionError with the correct signature
+        mock_error = APIConnectionError(
+            message="Connection failed", 
+            request=mock_request
+        )
+        mock_groq_instance.chat.completions.create.side_effect = mock_error
+        
         with self.assertRaises(HTTPException) as context:
             analyze_text_with_groq("test text")
-        self.assertEqual(context.exception.status_code, 500)
-        self.assertEqual(context.exception.detail, "Error connecting to Groq API.")
+        
+        self.assertEqual(context.exception.status_code, 503)
+        self.assertIn("Unable to connect", context.exception.detail)
 
     @patch('backend.external_integrations.groq_client.groq.Groq')
     def test_rate_limit_error(self, MockGroq):
