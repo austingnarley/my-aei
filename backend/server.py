@@ -12,6 +12,10 @@ import motor.motor_asyncio
 from bson import json_util
 from backend.external_integrations.groq_client import analyze_text_with_groq
 
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
+
 # Initialize FastAPI app
 app = FastAPI()
 
