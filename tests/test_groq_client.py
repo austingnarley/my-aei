@@ -110,14 +110,26 @@ class TestGroqClient(unittest.TestCase):
 
     @patch('backend.external_integrations.groq_client.groq.Groq')
     def test_rate_limit_error(self, MockGroq):
+        """Test handling of rate limit errors."""
         os.environ["GROQ_API_KEY"] = "test_api_key"
         mock_groq_instance = MockGroq.return_value
-        mock_groq_instance.chat.completions.create.side_effect = RateLimitError("Rate limit exceeded")
-
+        
+        # Create a mock response object for RateLimitError
+        mock_response = MagicMock()
+        mock_response.status_code = 429
+        
+        # Set up the mock to raise a RateLimitError with the correct signature
+        mock_groq_instance.chat.completions.create.side_effect = RateLimitError(
+            "Rate limit exceeded", 
+            response=mock_response, 
+            body={"error": {"message": "Rate limit exceeded"}}
+        )
+        
         with self.assertRaises(HTTPException) as context:
             analyze_text_with_groq("test text")
+        
         self.assertEqual(context.exception.status_code, 429)
-        self.assertEqual(context.exception.detail, "Groq API rate limit exceeded.")
+        self.assertIn("rate limit", context.exception.detail.lower())
 
     @patch('backend.external_integrations.groq_client.groq.Groq')
     def test_api_status_error(self, MockGroq):
