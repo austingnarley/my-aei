@@ -133,19 +133,28 @@ class TestGroqClient(unittest.TestCase):
 
     @patch('backend.external_integrations.groq_client.groq.Groq')
     def test_api_status_error(self, MockGroq):
+        """Test handling of API status errors."""
         os.environ["GROQ_API_KEY"] = "test_api_key"
         mock_groq_instance = MockGroq.return_value
-        # Mock the APIStatusError with a status_code and message
-        mock_groq_instance.chat.completions.create.side_effect = APIStatusError(
-            message="Internal Server Error", 
-            status_code=503, 
-            response=MagicMock() # Mocking the response object
+        
+        # Create a mock response object for APIStatusError
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        
+        # Set up the mock to raise an APIStatusError with the correct signature
+        mock_error = APIStatusError(
+            "Server error", 
+            response=mock_response, 
+            body={"error": {"message": "Internal server error"}}
         )
-
+        mock_error.status_code = 500  # Set the status_code attribute
+        mock_groq_instance.chat.completions.create.side_effect = mock_error
+        
         with self.assertRaises(HTTPException) as context:
             analyze_text_with_groq("test text")
-        self.assertEqual(context.exception.status_code, 503)
-        self.assertEqual(context.exception.detail, "Groq API error: Internal Server Error")
+        
+        self.assertEqual(context.exception.status_code, 503)  # Updated to match retry logic
+        self.assertIn("temporarily unavailable", context.exception.detail)
         
     @patch('backend.external_integrations.groq_client.groq.Groq')
     def test_api_status_error_no_message(self, MockGroq):
